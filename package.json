@@ -1,0 +1,41 @@
+{
+  "name": "aare-ai-aws",
+  "version": "1.0.0",
+  "description": "Formal verification for enterprise LLM deployments - AWS implementation",
+  "main": "index.js",
+  "scripts": {
+    "deploy:dev": "serverless deploy --stage dev",
+    "deploy:prod": "serverless deploy --stage prod",
+    "remove:dev": "serverless remove --stage dev",
+    "remove:prod": "serverless remove --stage prod",
+    "logs": "serverless logs -f verify --tail",
+    "test": "python -m pytest tests/",
+    "lint": "pylint src/"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/aare-ai/aare-aws.git"
+  },
+  "keywords": [
+    "ai",
+    "llm",
+    "verification",
+    "smt",
+    "z3",
+    "serverless",
+    "aws",
+    "lambda"
+  ],
+  "author": "aare.ai",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/aare-ai/aare-aws/issues"
+  },
+  "homepage": "https://aare.ai",
+  "devDependencies": {
+    "serverless": "^3.38.0",
+    "serverless-python-requirements": "^6.0.1",
+    "serverless-prune-plugin": "^2.0.2",
+    "serverless-plugin-tracing": "^2.0.0"
+  }
+}

@@ -1,0 +1,281 @@
+service: aare-ai
+
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: python3.11
+  stage: ${opt:stage, 'dev'}
+  region: ${opt:region, 'us-east-1'}
+  memorySize: 1024
+  timeout: 30
+  architecture: x86_64
+  
+  environment:
+    STAGE: ${self:provider.stage}
+    DYNAMODB_TABLE: ${self:service}-${self:provider.stage}
+    S3_ONTOLOGY_BUCKET: ${self:service}-ontologies-${self:provider.stage}
+    S3_PROOF_BUCKET: ${self:service}-proofs-${self:provider.stage}
+    REGION: ${self:provider.region}
+    
+  apiGateway:
+    apiKeys:
+      - name: ${self:service}-${self:provider.stage}-key
+    usagePlan:
+      quota:
+        limit: 10000
+        period: DAY
+      throttle:
+        burstLimit: 100
+        rateLimit: 50
+
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - dynamodb:Query
+            - dynamodb:Scan
+            - dynamodb:GetItem
+            - dynamodb:PutItem
+            - dynamodb:UpdateItem
+            - dynamodb:DeleteItem
+          Resource:
+            - "arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.DYNAMODB_TABLE}"
+            - "arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.DYNAMODB_TABLE}/index/*"
+        
+        - Effect: Allow
+          Action:
+            - s3:GetObject
+            - s3:PutObject
+            - s3:DeleteObject
+            - s3:ListBucket
+          Resource:
+            - "arn:aws:s3:::${self:provider.environment.S3_ONTOLOGY_BUCKET}/*"
+            - "arn:aws:s3:::${self:provider.environment.S3_PROOF_BUCKET}/*"
+            - "arn:aws:s3:::${self:provider.environment.S3_ONTOLOGY_BUCKET}"
+            - "arn:aws:s3:::${self:provider.environment.S3_PROOF_BUCKET}"
+        
+        - Effect: Allow
+          Action:
+            - xray:PutTraceSegments
+            - xray:PutTelemetryRecords
+          Resource: "*"
+          
+        - Effect: Allow
+          Action:
+            - logs:CreateLogGroup
+            - logs:CreateLogStream
+            - logs:PutLogEvents
+          Resource: "*"
+
+functions:
+  verify:
+    handler: src/handlers/verify.handler
+    description: Main verification endpoint
+    events:
+      - http:
+          path: verify
+          method: post
+          cors: true
+          private: true
+    layers:
+      - ${self:custom.z3Layer}
+    reservedConcurrency: 10
+    
+  getVerification:
+    handler: src/handlers/get_verification.handler
+    description: Retrieve verification details
+    events:
+      - http:
+          path: verification/{id}
+          method: get
+          cors: true
+          private: true
+          
+  uploadOntology:
+    handler: src/handlers/ontology.upload_handler
+    description: Upload new ontology
+    events:
+      - http:
+          path: ontology
+          method: post
+          cors: true
+          private: true
+    timeout: 60
+    
+  getOntology:
+    handler: src/handlers/ontology.get_handler
+    description: Retrieve ontology
+    events:
+      - http:
+          path: ontology/{name}
+          method: get
+          cors: true
+          private: true
+          
+  listOntologies:
+    handler: src/handlers/ontology.list_handler
+    description: List available ontologies
+    events:
+      - http:
+          path: ontologies
+          method: get
+          cors: true
+          private: true
+          
+  monitor:
+    handler: src/handlers/monitor.handler
+    description: Usage monitoring and metrics
+    events:
+      - schedule:
+          rate: rate(5 minutes)
+          
+  cleanup:
+    handler: src/handlers/cleanup.handler
+    description: Clean up old verification records
+    events:
+      - schedule:
+          rate: rate(1 day)
+
+custom:
+  z3Layer: arn:aws:lambda:${self:provider.region}:${aws:accountId}:layer:z3-solver:1
+  pythonRequirements:
+    dockerizePip: true
+    layer: true
+    slim: true
+  prune:
+    automatic: true
+    number: 3
+
+resources:
+  Resources:
+    VerificationTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:provider.environment.DYNAMODB_TABLE}
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: id
+            AttributeType: S
+          - AttributeName: userId
+            AttributeType: S
+          - AttributeName: timestamp
+            AttributeType: N
+          - AttributeName: ontologyName
+            AttributeType: S
+        KeySchema:
+          - AttributeName: id
+            KeyType: HASH
+        GlobalSecondaryIndexes:
+          - IndexName: UserIndex
+            KeySchema:
+              - AttributeName: userId
+                KeyType: HASH
+              - AttributeName: timestamp
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+          - IndexName: OntologyIndex
+            KeySchema:
+              - AttributeName: ontologyName
+                KeyType: HASH
+              - AttributeName: timestamp
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+        StreamSpecification:
+          StreamViewType: NEW_AND_OLD_IMAGES
+        PointInTimeRecoverySpecification:
+          PointInTimeRecoveryEnabled: true
+        Tags:
+          - Key: Service
+            Value: ${self:service}
+          - Key: Stage
+            Value: ${self:provider.stage}
+            
+    OntologyBucket:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: ${self:provider.environment.S3_ONTOLOGY_BUCKET}
+        VersioningConfiguration:
+          Status: Enabled
+        BucketEncryption:
+          ServerSideEncryptionConfiguration:
+            - ServerSideEncryptionByDefault:
+                SSEAlgorithm: AES256
+        PublicAccessBlockConfiguration:
+          BlockPublicAcls: true
+          BlockPublicPolicy: true
+          IgnorePublicAcls: true
+          RestrictPublicBuckets: true
+        LifecycleConfiguration:
+          Rules:
+            - Id: DeleteOldVersions
+              Status: Enabled
+              NoncurrentVersionExpirationInDays: 90
+        Tags:
+          - Key: Service
+            Value: ${self:service}
+          - Key: Stage
+            Value: ${self:provider.stage}
+            
+    ProofBucket:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: ${self:provider.environment.S3_PROOF_BUCKET}
+        BucketEncryption:
+          ServerSideEncryptionConfiguration:
+            - ServerSideEncryptionByDefault:
+                SSEAlgorithm: AES256
+        PublicAccessBlockConfiguration:
+          BlockPublicAcls: true
+          BlockPublicPolicy: true
+          IgnorePublicAcls: true
+          RestrictPublicBuckets: true
+        LifecycleConfiguration:
+          Rules:
+            - Id: ArchiveOldProofs
+              Status: Enabled
+              Transitions:
+                - StorageClass: INTELLIGENT_TIERING
+                  TransitionInDays: 30
+                - StorageClass: GLACIER
+                  TransitionInDays: 90
+        Tags:
+          - Key: Service
+            Value: ${self:service}
+          - Key: Stage
+            Value: ${self:provider.stage}
+
+  Outputs:
+    ApiGatewayUrl:
+      Description: API Gateway URL
+      Value:
+        Fn::Join:
+          - ''
+          - - 'https://'
+            - Ref: ApiGatewayRestApi
+            - '.execute-api.${self:provider.region}.amazonaws.com/${self:provider.stage}'
+      Export:
+        Name: ${self:service}-${self:provider.stage}-ApiUrl
+        
+    VerificationTableName:
+      Description: DynamoDB table name
+      Value:
+        Ref: VerificationTable
+      Export:
+        Name: ${self:service}-${self:provider.stage}-TableName
+
+plugins:
+  - serverless-python-requirements
+  - serverless-prune-plugin
+  - serverless-plugin-tracing
+
+package:
+  patterns:
+    - '!node_modules/**'
+    - '!.venv/**'
+    - '!.pytest_cache/**'
+    - '!tests/**'
+    - '!.git/**'

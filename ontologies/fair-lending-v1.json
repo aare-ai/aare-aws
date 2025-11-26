@@ -1,0 +1,81 @@
+{
+  "name": "fair-lending-v1",
+  "version": "1.0.0",
+  "description": "Fair Lending Act compliance verification for loan decisions",
+  "author": "aare.ai",
+  "created": "2025-01-01",
+  "domain": "financial-services",
+  "rules": [
+    {
+      "name": "max_dti_ratio",
+      "description": "Debt-to-income ratio must not exceed 43% for qualified mortgages",
+      "expression": "debt_to_income_ratio <= 0.43",
+      "variables": ["debt_to_income_ratio"],
+      "severity": "error",
+      "regulation": "CFPB Qualified Mortgage Rule"
+    },
+    {
+      "name": "min_credit_score",
+      "description": "Minimum credit score requirement for loan approval",
+      "expression": "credit_score >= 620",
+      "variables": ["credit_score"],
+      "severity": "error",
+      "regulation": "Internal Policy"
+    },
+    {
+      "name": "rate_compliance",
+      "description": "Interest rate must be within regulatory bounds",
+      "expression": "(interest_rate >= prime_rate - 1.0) and (interest_rate <= prime_rate + 8.0)",
+      "variables": ["interest_rate", "prime_rate"],
+      "severity": "error",
+      "regulation": "State Usury Laws"
+    },
+    {
+      "name": "no_discrimination",
+      "description": "Decision must not be based on protected characteristics",
+      "expression": "not (decision_factors contains ['race', 'color', 'religion', 'national_origin', 'sex', 'marital_status', 'age'])",
+      "variables": ["decision_factors"],
+      "severity": "error",
+      "regulation": "Equal Credit Opportunity Act (ECOA)"
+    },
+    {
+      "name": "appraisal_requirement",
+      "description": "Loan-to-value ratio must not exceed threshold",
+      "expression": "loan_to_value_ratio <= 0.80",
+      "variables": ["loan_to_value_ratio"],
+      "severity": "warning",
+      "regulation": "Risk Management Guidelines"
+    },
+    {
+      "name": "income_verification",
+      "description": "Income must be verified for loans over threshold",
+      "expression": "(loan_amount <= 50000) or (income_verified == true)",
+      "variables": ["loan_amount", "income_verified"],
+      "severity": "error",
+      "regulation": "Truth in Lending Act (TILA)"
+    },
+    {
+      "name": "minimum_down_payment",
+      "description": "Minimum down payment requirement based on loan type",
+      "expression": "(loan_type != 'FHA' or down_payment_percentage >= 0.035) and (loan_type != 'Conventional' or down_payment_percentage >= 0.05)",
+      "variables": ["loan_type", "down_payment_percentage"],
+      "severity": "error",
+      "regulation": "FHA/Conventional Loan Requirements"
+    },
+    {
+      "name": "geographic_restrictions",
+      "description": "Ensure no redlining in lending decisions",
+      "expression": "not (denial_reason == 'geographic_location')",
+      "variables": ["denial_reason"],
+      "severity": "error",
+      "regulation": "Fair Housing Act"
+    }
+  ],
+  "metadata": {
+    "jurisdiction": "United States",
+    "last_updated": "2025-01-01",
+    "compliance_standards": ["ECOA", "TILA", "Fair Housing Act", "CFPB QM Rule"],
+    "test_coverage": 0.95,
+    "certification": "Reviewed by Legal Compliance Team"
+  }
+}
