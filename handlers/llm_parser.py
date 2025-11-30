@@ -33,31 +33,27 @@ class LLMParser:
             # Some keywords should check for negation, others shouldn't
             check_negation = extractor.get('check_negation', True)
 
-            # Check if any keyword is present
-            keyword_found = False
+            # Check if any keyword is present without negation
             for kw in keywords:
                 if kw in text_lower:
-                    keyword_found = True
-
                     # Only check negation for recommendation-type keywords
-                    if check_negation:
-                        # Check for negation context around the keyword (before AND after)
+                    if check_negation and negation_words:
+                        # Check for negation context around the keyword
                         kw_pos = text_lower.find(kw)
-                        # Look at surrounding context (30 chars before AND 30 chars after)
-                        context_start = max(0, kw_pos - 30)
-                        context_end = min(len(text_lower), kw_pos + len(kw) + 30)
+                        # Look at surrounding context (15 chars before keyword only)
+                        # This prevents unrelated "no" words from triggering false negatives
+                        context_start = max(0, kw_pos - 15)
+                        context_end = kw_pos + len(kw)
                         context = text_lower[context_start:context_end]
 
-                        # Check for negation patterns that indicate NOT recommending
-                        negation_patterns = ['not ', 'no ', 'avoid', 'contraindicated', 'don\'t',
-                                            'cannot', 'should not', 'must not', 'never ',
-                                            'prohibited', ' is not ', ' not a ']
-                        negation_patterns.extend(negation_words)
+                        # Only check specific negation words from the extractor config
+                        if any(neg in context for neg in negation_words):
+                            continue  # Try next keyword instead of returning False
 
-                        if any(neg in context for neg in negation_patterns):
-                            return False
+                    # Found a keyword without negation
+                    return True
 
-            return keyword_found
+            return False
         
         elif extractor_type in ['int', 'float', 'money', 'percentage']:
             # Use regex pattern
