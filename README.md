@@ -17,7 +17,7 @@ LLM Output → aare.ai → Verified Output + Proof Certificate
 
 ## Why?
 
-LLM agents are in production today—answering customers, processing claims, drafting contracts. Every response is a compliance risk. Prompt engineering fails silently. Output filters miss edge cases.
+LLM agents are in production today, answering customers, processing claims, drafting contracts. Every response is a compliance risk. Prompt engineering fails silently. Output filters miss edge cases.
 
 aare.ai checks 100% of LLM outputs against your exact compliance requirements. If it passes, it's delivered. If it fails, it's blocked—with a proof certificate that pinpoints the exact rule violated.
 
