@@ -243,4 +243,4 @@ MIT
 ## Links
 
 - Website: [aare.ai](https://aare.ai)
-- Email: contact@aare.ai
+- Email: info@aare.ai
