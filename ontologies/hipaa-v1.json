@@ -652,7 +652,7 @@
     },
     "recipient_role_admin": {
       "type": "boolean",
-      "keywords": ["admin", "administrator", "billing", "receptionist", "front desk"]
+      "keywords": ["role: admin", "role:admin", "administrator", "billing department", "billing staff", "receptionist", "front desk"]
     },
     "has_treatment_details": {
       "type": "boolean",

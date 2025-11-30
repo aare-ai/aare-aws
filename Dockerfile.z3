@@ -1,24 +1,31 @@
+# Build stage - using full Python image with build tools
+FROM python:3.11-slim as builder
+
+# Install build dependencies for Z3
+RUN apt-get update && apt-get install -y \
+    gcc \
+    g++ \
+    cmake \
+    make \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Z3 in the builder stage
+RUN pip install --no-cache-dir z3-solver
+
+# Runtime stage - Lambda image
 FROM public.ecr.aws/lambda/python:3.11
 
-# Install Z3 using a compatible pre-built wheel
-RUN pip install --no-cache-dir \
-    --only-binary :all: \
-    --platform manylinux2014_x86_64 \
-    --python-version 311 \
-    --implementation cp \
-    --abi cp311 \
-    --index-url https://pypi.org/simple/ \
-    z3-solver==4.12.1.0 \
-    || pip install z3-solver==4.8.12.0 \
-    || echo "Z3 installation failed, continuing without it"
+# Copy Z3 from builder to Lambda runtime
+COPY --from=builder /usr/local/lib/python3.11/site-packages/ /var/lang/lib/python3.11/site-packages/
 
-# Install boto3
+# Install boto3 (already in Lambda but let's be explicit)
 RUN pip install boto3
 
 # Copy handler files
 COPY handlers/ ${LAMBDA_TASK_ROOT}/handlers/
 
-# Don't test Z3 import here - let it fail gracefully at runtime if needed
+# Test that Z3 imports correctly
+RUN python -c "from z3 import *; print('Z3 imported successfully')"
 
 # Set the handler
 CMD ["handlers.handler.handler"]
