@@ -1,205 +1,246 @@
 # aare.ai
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Python](https://img.shields.io/badge/python-v3.11+-blue.svg)](https://www.python.org/)
-[![Z3](https://img.shields.io/badge/Z3-SMT_Solver-blue)](https://github.com/Z3Prover/z3)
+Formal verification for LLM outputs. Mathematical proof that your AI complies with your rules.
 
-Post-generation formal verification for LLMs using SMT solving. Ensure LLM outputs satisfy your constraints with mathematical proofs, not probabilities.
+## What is aare.ai?
 
-## What is this?
-
-aare.ai is a verification layer that sits between your LLM and production systems. It uses [Z3 theorem prover](https://github.com/Z3Prover/z3) to formally verify that LLM outputs satisfy your business rules before they reach production.
+aare.ai is a verification layer that sits between your LLM and production. It uses the [Z3 theorem prover](https://github.com/Z3Prover/z3) to mathematically verify that every LLM output satisfies your compliance constraints before it reaches customers.
 
 ```
-LLM Output → aare.ai → Verified Output + Proof
+LLM Output → aare.ai → Verified Output + Proof Certificate
                 ↑
-          Enterprise Rules
-          (OWL/JSON ontologies)
+         Your Compliance Rules
+         (JSON ontologies)
 ```
+
+**Not pattern matching. Not regex. Mathematical proof.**
+
+## Why?
+
+LLM agents are in production today—answering customers, processing claims, drafting contracts. Every response is a compliance risk. Prompt engineering fails silently. Output filters miss edge cases.
+
+aare.ai checks 100% of LLM outputs against your exact compliance requirements. If it passes, it's delivered. If it fails, it's blocked—with a proof certificate that pinpoints the exact rule violated.
 
 ## Quick Start
 
-### Local Development
+### Install
 
 ```bash
-# Clone and setup
 git clone https://github.com/aare-ai/aare-aws
 cd aare-aws
 python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+source venv/bin/activate
 pip install -r requirements.txt
-
-# Run tests
-pytest tests/
-
-# Run locally (requires AWS credentials)
-python -m src.local_server
 ```
 
 ### Deploy to AWS
 
 ```bash
-# Install Serverless Framework
+npm install -g serverless
 npm install
-
-# Deploy to AWS
-serverless deploy --stage dev
-
-# Get your API endpoint
-serverless info --stage dev
+serverless deploy --stage prod
 ```
 
-## How it Works
+### Call the API
 
-1. **Define Constraints**: Write your business rules as ontologies
-2. **Call API**: Send LLM output to aare.ai
-3. **Get Proof**: Receive verification result with mathematical proof
+```bash
+curl -X POST https://your-api.execute-api.region.amazonaws.com/prod/verify \
+  -H "Content-Type: application/json" \
+  -H "x-api-key: your-key" \
+  -d '{
+    "ontology": "mortgage-compliance-v1",
+    "llm_output": "Based on your DTI of 45% and credit score of 680, I recommend approving this $400k mortgage with escrow waiver."
+  }'
+```
 
-### Example: Verify a Loan Decision
-
-```python
-import requests
-
-response = requests.post(
-    "https://your-api.execute-api.region.amazonaws.com/dev/verify",
-    headers={"x-api-key": "your-key"},
-    json={
-        "content": {
-            "decision": "approve",
-            "amount": 50000,
-            "dti_ratio": 0.38,
-            "credit_score": 720
-        },
-        "ontology": "fair-lending-v1",
-        "rules": ["max_dti_ratio", "min_credit_score"]
-    }
-)
-
-# Returns:
-# {
-#   "verified": true,
-#   "violations": [],
-#   "proof_certificate": "QmX4...",
-#   "execution_time_ms": 47
-# }
-
-## Writing Ontologies
-
-Ontologies define your verification rules. You can write them in JSON or OWL format.
-
-### JSON Example
+### Response
 
 ```json
 {
-  "name": "fair-lending-v1",
-  "version": "1.0.0",
-  "rules": [
+  "verified": false,
+  "violations": [
     {
-      "name": "max_dti_ratio",
-      "expression": "debt_to_income_ratio <= 0.43",
-      "variables": ["debt_to_income_ratio"],
-      "severity": "error"
-    },
-    {
-      "name": "min_credit_score", 
-      "expression": "credit_score >= 620",
-      "variables": ["credit_score"],
-      "severity": "error"
+      "constraint_id": "ATR_QM_DTI",
+      "category": "ATR/QM",
+      "description": "Debt-to-income ratio requirements",
+      "error_message": "DTI exceeds 43% without sufficient compensating factors",
+      "formula": "(dti ≤ 43) ∨ (compensating_factors ≥ 2)",
+      "citation": "12 CFR § 1026.43(c)"
     }
-  ]
+  ],
+  "parsed_data": {
+    "dti": 45,
+    "credit_score": 680,
+    "escrow_waived": true,
+    "compensating_factors": 0
+  },
+  "proof": {
+    "method": "Z3 SMT Solver",
+    "version": "4.12.1",
+    "results": [...]
+  }
 }
 ```
 
-### Supported Constraint Types
+## How It Works
 
-- **Numeric**: `x <= 100`, `y >= 0`, `z == 42`
-- **Boolean**: `a and b`, `x or y`, `not z`
-- **Relational**: `forall x in list: x > 0`
-- **Aggregate**: `sum(values) < threshold`
+1. **Parse**: Extract structured data from unstructured LLM output (free text, JSON, bullet points)
+2. **Load Ontology**: Your compliance rules defined as formal constraints
+3. **Verify**: Z3 theorem prover checks if extracted data satisfies all constraints
+4. **Prove**: Returns mathematical proof of compliance or exact violation details
 
-## Architecture
+## Ontologies
 
-This is the AWS serverless implementation. Key components:
+Ontologies define your verification rules. Each constraint specifies:
+- Variables to extract from LLM output
+- Logical formula that must be satisfied
+- Error message and regulatory citation
 
-- `src/core/verifier.py` - SMT verification engine using Z3
-- `src/core/parser.py` - LLM output parser
-- `src/handlers/` - Lambda function handlers
-- `ontologies/` - Pre-built verification rules
+### Example: Mortgage Compliance
+
+```json
+{
+  "name": "mortgage-compliance-v1",
+  "version": "1.0.0",
+  "constraints": [
+    {
+      "id": "ATR_QM_DTI",
+      "category": "ATR/QM",
+      "description": "Debt-to-income ratio requirements",
+      "formula_readable": "(dti ≤ 43) ∨ (compensating_factors ≥ 2)",
+      "variables": [
+        {"name": "dti", "type": "real"},
+        {"name": "compensating_factors", "type": "int"}
+      ],
+      "error_message": "DTI exceeds 43% without sufficient compensating factors",
+      "citation": "12 CFR § 1026.43(c)"
+    }
+  ],
+  "extractors": {
+    "dti": {
+      "type": "float",
+      "pattern": "dti[:\\s~]*(\\d+(?:\\.\\d+)?)"
+    }
+  }
+}
+```
+
+### Included Ontologies
+
+| Ontology | Domain | Constraints |
+|----------|--------|-------------|
+| `mortgage-compliance-v1` | Lending | ATR/QM, HOEPA, UDAAP, Reg B |
+| `medical-safety-v1` | Healthcare | Drug interactions, dosing limits, referrals |
+| `financial-compliance-v1` | Finance | Investment advice, disclaimers, suitability |
+| `data-privacy-v1` | Security | PII, credentials, internal URLs |
+| `customer-service-v1` | Support | Discount limits, delivery promises, fault admission |
+| `fair-lending-v1` | Lending | DTI limits, credit score requirements |
+| `trading-compliance-v1` | Trading | Position limits, sector exposure |
+| `content-policy-v1` | Content | Real people, religious content, medical advice |
+| `contract-compliance-v1` | Legal | Usury limits, late fee caps |
+
+## Project Structure
+
+```
+aare-aws/
+├── handlers/
+│   ├── handler.py          # Lambda entry point
+│   ├── llm_parser.py        # Extract data from LLM output
+│   ├── smt_verifier.py      # Z3 constraint verification
+│   └── ontology_loader.py   # Load ontologies from S3
+├── ontologies/              # Compliance rule definitions
+│   ├── mortgage-compliance-v1.json
+│   ├── medical-safety-v1.json
+│   └── ...
+├── tests/
+│   ├── test_verifier.py
+│   └── test_parser.py
+├── serverless.yml           # AWS deployment config
+└── requirements.txt
+```
 
 ## API Reference
 
 ### POST /verify
-Verify LLM output against constraints
 
+Verify LLM output against an ontology.
+
+**Request:**
 ```json
-Request:
 {
-  "content": {...},        // LLM output to verify
-  "ontology": "string",    // Ontology name
-  "rules": ["string"],     // Specific rules (optional)
-  "timeout": 1000         // Timeout in ms (optional)
+  "llm_output": "string",
+  "ontology": "string"
 }
+```
 
-Response:
+**Response:**
+```json
 {
   "verified": true,
   "violations": [],
-  "proof_certificate": "hash",
-  "execution_time_ms": 47
+  "parsed_data": {},
+  "ontology": {
+    "name": "string",
+    "version": "string",
+    "constraints_checked": 5
+  },
+  "proof": {
+    "method": "Z3 SMT Solver",
+    "version": "4.12.1",
+    "results": []
+  },
+  "verification_id": "uuid",
+  "execution_time_ms": 47,
+  "timestamp": "2024-01-15T10:30:00Z"
 }
 ```
+
+## Writing Custom Ontologies
+
+1. Define constraints with variables, formulas, and error messages
+2. Define extractors to pull data from unstructured text
+3. Upload to S3 bucket or include in deployment
+4. Call API with your ontology name
+
+See `ontologies/` for examples.
 
 ## Development
 
 ```bash
-# Setup
+# Create virtual environment
 python -m venv venv
 source venv/bin/activate
-pip install -r requirements-dev.txt
+
+# Install dependencies
+pip install -r requirements.txt
 
 # Run tests
 pytest tests/ -v
 
-# Linting
-black src/
-pylint src/
+# Deploy to dev
+serverless deploy --stage dev
 ```
 
-## Contributing
+## Architecture
 
-We need help with:
-- Ontologies for specific regulations (GDPR, HIPAA, SOX, etc.)
-- Performance optimizations for complex constraints
-- Additional language bindings (Node.js, Go, Rust)
-- Documentation and examples
+- **Runtime**: Python 3.11 on AWS Lambda
+- **Solver**: Z3 SMT Solver
+- **Storage**: S3 for ontologies
+- **API**: API Gateway with API key authentication
+- **Framework**: Serverless Framework
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
+## Requirements
 
-## Performance
-
-Current benchmarks on AWS Lambda (1024MB):
-- Simple numeric constraints: ~20ms
-- Complex relational constraints: ~100ms
-- Ontology parsing cached after first use
-
-## Limitations
-
-- SMT solving can be NP-complete for complex constraints
-- Natural language parsing is imperfect
-- Some constraints may timeout on complex inputs
+- Python 3.11+
+- Node.js 18+ (for Serverless Framework)
+- AWS Account
+- AWS CLI configured
 
 ## License
 
-MIT - See [LICENSE](LICENSE)
+MIT
 
-## Related Projects
+## Links
 
-- [Z3 Theorem Prover](https://github.com/Z3Prover/z3)
-- [OpenAI Evals](https://github.com/openai/evals)
-- [Guardrails AI](https://github.com/guardrails-ai/guardrails)
-
-## Contact
-
-- Issues: [GitHub Issues](https://github.com/aare-ai/aare-aws/issues)
-- Email: contact@aare.ai
 - Website: [aare.ai](https://aare.ai)
+- Email: contact@aare.ai
