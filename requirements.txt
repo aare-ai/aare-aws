@@ -1,7 +1,8 @@
 # Core dependencies
-z3-solver==4.12.2.0
-boto3==1.34.0
+z3-solver==4.15.4.0
+boto3
 botocore==1.34.0
+owlready2
 
 # AWS Lambda utilities
 aws-lambda-powertools==2.31.0

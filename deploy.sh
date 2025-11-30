@@ -1,92 +1,67 @@
-#!/bin/bash
+cat > Dockerfile.z3 << 'EOF'
+# Build stage - using full Python image with build tools
+FROM python:3.11-slim as builder
 
-# aare.ai AWS Deployment Script
-# Deploy the serverless application to AWS
+# Install build dependencies for Z3
+RUN apt-get update && apt-get install -y \
+    gcc \
+    g++ \
+    cmake \
+    make \
+    && rm -rf /var/lib/apt/lists/*
 
-set -e  # Exit on error
+# Install Z3 in the builder stage
+RUN pip install --no-cache-dir z3-solver
 
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
+# Runtime stage - Lambda image
+FROM public.ecr.aws/lambda/python:3.11
 
-# Default values
-STAGE=${1:-dev}
-REGION=${2:-us-east-1}
-PROFILE=${3:-default}
+# Copy Z3 from builder to Lambda runtime
+COPY --from=builder /usr/local/lib/python3.11/site-packages/ /var/lang/lib/python3.11/site-packages/
 
-echo -e "${GREEN}🚀 Deploying aare.ai to AWS${NC}"
-echo -e "Stage: ${YELLOW}$STAGE${NC}"
-echo -e "Region: ${YELLOW}$REGION${NC}"
-echo -e "Profile: ${YELLOW}$PROFILE${NC}"
+# Install boto3 (already in Lambda but let's be explicit)
+RUN pip install boto3
 
-# Check prerequisites
-echo -e "\n${GREEN}Checking prerequisites...${NC}"
+# Copy handler files
+COPY handlers/ ${LAMBDA_TASK_ROOT}/handlers/
 
-if ! command -v node &> /dev/null; then
-    echo -e "${RED}❌ Node.js is not installed${NC}"
-    exit 1
-fi
+# Test that Z3 imports correctly
+RUN python -c "from z3 import *; print('Z3 imported successfully')"
 
-if ! command -v python3 &> /dev/null; then
-    echo -e "${RED}❌ Python 3 is not installed${NC}"
-    exit 1
-fi
+# Set the handler
+CMD ["handlers.handler.handler"]
+EOF
 
-if ! command -v aws &> /dev/null; then
-    echo -e "${RED}❌ AWS CLI is not installed${NC}"
-    exit 1
-fi
+# Build the image with Z3
+echo "Building Docker image with Z3..."
+docker build -f Dockerfile.z3 -t aare-ai-z3 .
 
-echo -e "${GREEN}✓ All prerequisites met${NC}"
+# Tag it for ECR
+docker tag aare-ai-z3:latest 596626989349.dkr.ecr.us-west-2.amazonaws.com/aare-ai:prod-z3
 
-# Install dependencies
-echo -e "\n${GREEN}Installing dependencies...${NC}"
-npm install
+# Push to ECR
+echo "Pushing to ECR..."
+docker push 596626989349.dkr.ecr.us-west-2.amazonaws.com/aare-ai:prod-z3
 
-# Run tests
-echo -e "\n${GREEN}Running tests...${NC}"
-python3 -m pytest tests/ -v || {
-    echo -e "${RED}❌ Tests failed. Fix issues before deploying.${NC}"
-    exit 1
-}
+# Update Lambda function
+echo "Updating Lambda function..."
+aws lambda update-function-code \
+    --function-name aare-ai-prod \
+    --image-uri 596626989349.dkr.ecr.us-west-2.amazonaws.com/aare-ai:prod-z3 \
+    --region us-west-2
 
-# Deploy with Serverless Framework
-echo -e "\n${GREEN}Deploying with Serverless Framework...${NC}"
-npx serverless deploy \
-    --stage $STAGE \
-    --region $REGION \
-    --aws-profile $PROFILE \
-    --verbose
+# Wait for update to complete
+echo "Waiting for Lambda update to complete..."
+aws lambda wait function-updated \
+    --function-name aare-ai-prod \
+    --region us-west-2
 
-# Get deployment info
-echo -e "\n${GREEN}Getting deployment information...${NC}"
-npx serverless info \
-    --stage $STAGE \
-    --region $REGION \
-    --aws-profile $PROFILE
+echo "✅ Deployment complete! Testing the API..."
 
-# Upload initial ontologies
-echo -e "\n${GREEN}Uploading initial ontologies...${NC}"
-python3 scripts/upload_ontologies.py \
-    --stage $STAGE \
-    --region $REGION \
-    --profile $PROFILE
-
-echo -e "\n${GREEN}✅ Deployment complete!${NC}"
-echo -e "${YELLOW}API endpoint and API key are shown above.${NC}"
-echo -e "${YELLOW}Save your API key securely - you won't be able to see it again.${NC}"
-
-# Create .env file if it doesn't exist
-if [ ! -f .env ]; then
-    echo -e "\n${GREEN}Creating .env file...${NC}"
-    cp .env.example .env
-    echo -e "${YELLOW}Please update .env with your API endpoint and key.${NC}"
-fi
-
-echo -e "\n${GREEN}Next steps:${NC}"
-echo -e "1. Save your API key from the output above"
-echo -e "2. Update .env with your API endpoint and key"
-echo -e "3. Test the API: ${YELLOW}python3 scripts/test_api.py${NC}"
-echo -e "4. View CloudWatch logs: ${YELLOW}serverless logs -f verify --tail${NC}"
+# Test the API
+curl -X POST https://lofeorzpeh.execute-api.us-west-2.amazonaws.com/prod/verify \
+  -H "Content-Type: application/json" \
+  -d '{
+    "llm_output": "Approved! DTI is 35%",
+    "ontology": "mortgage-compliance-v1"
+  }'

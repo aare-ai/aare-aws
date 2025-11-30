@@ -1,182 +1,240 @@
 """
-Tests for SMT verifier module
+Tests for SMT verifier
 """
 
 import pytest
-from src.core.verifier import SMTVerifier, Constraint, ConstraintType, Violation
+import sys
+import os
+
+# Add handlers to path
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+
+from handlers.smt_verifier import SMTVerifier
 
 
 class TestSMTVerifier:
     """Test cases for SMTVerifier"""
-    
+
     def setup_method(self):
         """Set up test fixtures"""
-        self.ontology = {
-            "name": "test-ontology",
+        self.verifier = SMTVerifier()
+        self.mortgage_ontology = {
+            "name": "mortgage-compliance-v1",
             "version": "1.0.0",
-            "rules": [
+            "constraints": [
                 {
-                    "name": "max_amount",
-                    "expression": "amount <= 100000",
-                    "variables": ["amount"],
-                    "severity": "error",
-                    "description": "Amount must not exceed 100000"
+                    "id": "ATR_QM_DTI",
+                    "category": "ATR/QM",
+                    "description": "Debt-to-income ratio requirements",
+                    "formula_readable": "(dti ≤ 43) ∨ (compensating_factors ≥ 2)",
+                    "variables": [
+                        {"name": "dti", "type": "real"},
+                        {"name": "compensating_factors", "type": "int"}
+                    ],
+                    "error_message": "DTI exceeds 43% without sufficient compensating factors",
+                    "citation": "12 CFR § 1026.43(c)"
                 },
                 {
-                    "name": "min_credit_score",
-                    "expression": "credit_score >= 600",
-                    "variables": ["credit_score"],
-                    "severity": "error",
-                    "description": "Credit score must be at least 600"
-                },
-                {
-                    "name": "dti_ratio",
-                    "expression": "debt_to_income_ratio <= 0.43",
-                    "variables": ["debt_to_income_ratio"],
-                    "severity": "error",
-                    "description": "DTI must not exceed 43%"
+                    "id": "UDAAP_NO_GUARANTEES",
+                    "category": "UDAAP",
+                    "description": "Prohibition on guarantee language",
+                    "formula_readable": "¬(has_guarantee ∧ has_approval)",
+                    "variables": [
+                        {"name": "has_guarantee", "type": "bool"},
+                        {"name": "has_approval", "type": "bool"}
+                    ],
+                    "error_message": "Cannot guarantee approval",
+                    "citation": "12 CFR § 1036.3"
                 }
             ]
         }
-        self.verifier = SMTVerifier(self.ontology)
-    
-    def test_initialization(self):
-        """Test verifier initialization"""
-        assert len(self.verifier.constraints) == 3
-        assert all(isinstance(c, Constraint) for c in self.verifier.constraints)
-    
+
     def test_verify_all_passing(self):
         """Test verification with all constraints passing"""
         data = {
-            "amount": 50000,
-            "credit_score": 750,
-            "debt_to_income_ratio": 0.35
+            "dti": 40,
+            "compensating_factors": 0,
+            "has_guarantee": False,
+            "has_approval": True
         }
-        
-        result = self.verifier.verify(data)
-        
+
+        result = self.verifier.verify(data, self.mortgage_ontology)
+
         assert result["verified"] == True
         assert len(result["violations"]) == 0
-        assert result["constraints_checked"] == 3
-    
-    def test_verify_with_violation(self):
-        """Test verification with constraint violations"""
+
+    def test_verify_dti_violation(self):
+        """Test verification with DTI violation"""
         data = {
-            "amount": 150000,  # Exceeds max
-            "credit_score": 550,  # Below min
-            "debt_to_income_ratio": 0.35
+            "dti": 50,  # Exceeds 43%
+            "compensating_factors": 0,  # No compensating factors
+            "has_guarantee": False,
+            "has_approval": True
         }
-        
-        result = self.verifier.verify(data)
-        
+
+        result = self.verifier.verify(data, self.mortgage_ontology)
+
         assert result["verified"] == False
-        assert len(result["violations"]) == 2
-        
-        # Check specific violations
-        violations = result["violations"]
-        constraint_names = [v["constraint"] for v in violations]
-        assert "max_amount" in constraint_names
-        assert "min_credit_score" in constraint_names
-    
-    def test_verify_missing_variables(self):
-        """Test verification with missing required variables"""
+        assert len(result["violations"]) == 1
+        assert result["violations"][0]["constraint_id"] == "ATR_QM_DTI"
+
+    def test_verify_dti_with_compensating_factors(self):
+        """Test that high DTI passes with compensating factors"""
         data = {
-            "amount": 50000
-            # Missing credit_score and debt_to_income_ratio
+            "dti": 50,  # Exceeds 43%
+            "compensating_factors": 2,  # Has compensating factors
+            "has_guarantee": False,
+            "has_approval": True
         }
-        
-        result = self.verifier.verify(data)
-        
-        # Should handle missing variables gracefully
+
+        result = self.verifier.verify(data, self.mortgage_ontology)
+
+        assert result["verified"] == True
+        assert len(result["violations"]) == 0
+
+    def test_verify_guarantee_violation(self):
+        """Test verification with guarantee + approval violation"""
+        data = {
+            "dti": 40,
+            "compensating_factors": 0,
+            "has_guarantee": True,  # Guarantee language
+            "has_approval": True    # With approval
+        }
+
+        result = self.verifier.verify(data, self.mortgage_ontology)
+
+        assert result["verified"] == False
+        violations = [v["constraint_id"] for v in result["violations"]]
+        assert "UDAAP_NO_GUARANTEES" in violations
+
+    def test_verify_missing_variables(self):
+        """Test verification handles missing variables gracefully"""
+        data = {
+            "dti": 40
+            # Missing other variables
+        }
+
+        result = self.verifier.verify(data, self.mortgage_ontology)
+
+        # Should complete without error
         assert "verified" in result
         assert "violations" in result
-    
-    def test_set_active_rules(self):
-        """Test setting specific rules to be active"""
-        self.verifier.set_active_rules(["max_amount"])
-        
+
+    def test_execution_time_included(self):
+        """Test that execution time is included in result"""
         data = {
-            "amount": 50000,
-            "credit_score": 550,  # Would violate if checked
-            "debt_to_income_ratio": 0.5  # Would violate if checked
+            "dti": 40,
+            "compensating_factors": 0,
+            "has_guarantee": False,
+            "has_approval": True
         }
-        
-        result = self.verifier.verify(data)
-        
-        # Only max_amount should be checked
-        assert result["constraints_checked"] == 1
-        assert result["verified"] == True
-    
-    def test_numeric_constraint_parsing(self):
-        """Test parsing of numeric constraints"""
-        data = {
-            "amount": 75000,
-            "credit_score": 700,
-            "debt_to_income_ratio": 0.40
-        }
-        
-        result = self.verifier.verify(data)
-        
-        assert result["verified"] == True
-    
-    def test_timeout_handling(self):
-        """Test timeout parameter"""
-        data = {
-            "amount": 50000,
-            "credit_score": 750,
-            "debt_to_income_ratio": 0.35
-        }
-        
-        # Should complete quickly
-        result = self.verifier.verify(data, timeout_ms=100)
-        
+
+        result = self.verifier.verify(data, self.mortgage_ontology)
+
         assert "execution_time_ms" in result
-        assert result["execution_time_ms"] < 100
-    
-    def test_constraint_type_detection(self):
-        """Test detection of constraint types"""
-        rules = [
-            {"expression": "x <= 100", "expected_type": ConstraintType.NUMERIC_RANGE},
-            {"expression": "a and b", "expected_type": ConstraintType.BOOLEAN_LOGIC},
-            {"expression": "forall x: x > 0", "expected_type": ConstraintType.RELATIONAL},
-            {"expression": "sum(values) < 1000", "expected_type": ConstraintType.AGGREGATE}
-        ]
-        
-        for rule in rules:
-            constraint_type = self.verifier._determine_constraint_type(rule)
-            assert constraint_type == rule["expected_type"]
-    
-    def test_flatten_dict(self):
-        """Test dictionary flattening"""
-        nested = {
-            "level1": {
-                "level2": {
-                    "value": 123
-                }
-            },
-            "simple": "value"
-        }
-        
-        flat = self.verifier._flatten_dict(nested)
-        
-        assert flat["level1.level2.value"] == 123
-        assert flat["simple"] == "value"
-    
-    def test_violation_details(self):
-        """Test that violations contain proper details"""
+        assert isinstance(result["execution_time_ms"], int)
+
+    def test_proof_certificate_included(self):
+        """Test that proof certificate is included in result"""
         data = {
-            "amount": 150000,
-            "credit_score": 750,
-            "debt_to_income_ratio": 0.35
+            "dti": 40,
+            "compensating_factors": 0,
+            "has_guarantee": False,
+            "has_approval": True
         }
-        
-        result = self.verifier.verify(data)
-        
+
+        result = self.verifier.verify(data, self.mortgage_ontology)
+
+        assert "proof" in result
+        assert result["proof"]["method"] == "Z3 SMT Solver"
+
+
+class TestMedicalOntology:
+    """Test cases for medical safety ontology"""
+
+    def setup_method(self):
+        self.verifier = SMTVerifier()
+        self.medical_ontology = {
+            "name": "medical-safety-v1",
+            "version": "1.0.0",
+            "constraints": [
+                {
+                    "id": "EGFR_METFORMIN",
+                    "category": "Kidney Function",
+                    "description": "Metformin contraindication based on kidney function",
+                    "formula_readable": "(egfr >= 45) ∨ ¬recommends_metformin",
+                    "variables": [
+                        {"name": "egfr", "type": "int"},
+                        {"name": "recommends_metformin", "type": "bool"}
+                    ],
+                    "error_message": "Metformin contraindicated when eGFR < 45 ml/min",
+                    "citation": "FDA Metformin Label Update 2016"
+                },
+                {
+                    "id": "DRUG_INTERACTION",
+                    "category": "Drug Safety",
+                    "description": "Check for contraindicated drug combinations",
+                    "formula_readable": "¬(ace_inhibitor ∧ potassium_sparing)",
+                    "variables": [
+                        {"name": "ace_inhibitor", "type": "bool"},
+                        {"name": "potassium_sparing", "type": "bool"}
+                    ],
+                    "error_message": "ACE inhibitor with potassium-sparing diuretic risk",
+                    "citation": "Drug Interaction Database"
+                }
+            ]
+        }
+
+    def test_metformin_safe_egfr(self):
+        """Test metformin recommendation with safe eGFR"""
+        data = {
+            "egfr": 60,
+            "recommends_metformin": True,
+            "ace_inhibitor": False,
+            "potassium_sparing": False
+        }
+
+        result = self.verifier.verify(data, self.medical_ontology)
+
+        assert result["verified"] == True
+
+    def test_metformin_low_egfr_violation(self):
+        """Test metformin recommendation with low eGFR"""
+        data = {
+            "egfr": 30,  # Below 45
+            "recommends_metformin": True,  # Recommending anyway
+            "ace_inhibitor": False,
+            "potassium_sparing": False
+        }
+
+        result = self.verifier.verify(data, self.medical_ontology)
+
         assert result["verified"] == False
-        violation = result["violations"][0]
-        
-        assert "constraint" in violation
-        assert "description" in violation
-        assert "severity" in violation
-        assert "expected" in violation
-        assert "actual" in violation
+        assert any(v["constraint_id"] == "EGFR_METFORMIN" for v in result["violations"])
+
+    def test_metformin_low_egfr_no_recommendation(self):
+        """Test no metformin recommendation with low eGFR is safe"""
+        data = {
+            "egfr": 30,  # Below 45
+            "recommends_metformin": False,  # Not recommending
+            "ace_inhibitor": False,
+            "potassium_sparing": False
+        }
+
+        result = self.verifier.verify(data, self.medical_ontology)
+
+        assert result["verified"] == True
+
+    def test_drug_interaction_violation(self):
+        """Test drug interaction detection"""
+        data = {
+            "egfr": 60,
+            "recommends_metformin": False,
+            "ace_inhibitor": True,  # ACE inhibitor
+            "potassium_sparing": True  # With potassium-sparing diuretic
+        }
+
+        result = self.verifier.verify(data, self.medical_ontology)
+
+        assert result["verified"] == False
+        assert any(v["constraint_id"] == "DRUG_INTERACTION" for v in result["violations"])
