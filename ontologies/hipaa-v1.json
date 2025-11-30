@@ -602,7 +602,7 @@
     },
     "has_street_address": {
       "type": "boolean",
-      "keywords": ["main st", "street", "avenue", "ave", "blvd", "road", "rd", "lane", "ln", "drive", "dr", "123 ", "456 "],
+      "keywords": ["main st", " street,", " street ", "avenue", " ave,", " ave ", "boulevard", " blvd,", " blvd ", " road,", " road ", " rd,", " lane,", " lane ", " ln,", " drive,", " drive ", "123 main", "456 oak", "789 elm"],
       "negation_words": ["redacted", "removed"]
     },
     "has_phone_number": {
