@@ -279,6 +279,248 @@ class SMTVerifier:
             verified = z3_vars.get('employment_verified', Bool('employment_verified'))
             return verified == True
 
+        # HIPAA PHI Detection constraints
+        elif constraint_id == 'PHI_NAME_DISCLOSURE':
+            has_name = z3_vars.get('has_patient_name', Bool('has_patient_name'))
+            authorized = z3_vars.get('recipient_authorized', Bool('recipient_authorized'))
+            return Or(Not(has_name), authorized)
+
+        elif constraint_id == 'PHI_DOB_DISCLOSURE':
+            has_dob = z3_vars.get('has_dob', Bool('has_dob'))
+            deidentified = z3_vars.get('is_deidentified', Bool('is_deidentified'))
+            return Or(Not(has_dob), deidentified)
+
+        elif constraint_id == 'PHI_ADDRESS_DISCLOSURE':
+            has_address = z3_vars.get('has_street_address', Bool('has_street_address'))
+            return Not(has_address)
+
+        elif constraint_id == 'PHI_PHONE_DISCLOSURE':
+            has_phone = z3_vars.get('has_phone_number', Bool('has_phone_number'))
+            return Not(has_phone)
+
+        elif constraint_id == 'PHI_SSN_ZERO_TOLERANCE':
+            has_ssn = z3_vars.get('has_ssn', Bool('has_ssn'))
+            return Not(has_ssn)
+
+        elif constraint_id == 'PHI_MRN_ZERO_TOLERANCE':
+            has_mrn = z3_vars.get('has_mrn', Bool('has_mrn'))
+            external = z3_vars.get('recipient_external', Bool('recipient_external'))
+            return Or(Not(has_mrn), Not(external))
+
+        elif constraint_id == 'PHI_EMAIL_DISCLOSURE':
+            has_email = z3_vars.get('has_email', Bool('has_email'))
+            return Not(has_email)
+
+        elif constraint_id == 'PHI_DEVICE_ID_DISCLOSURE':
+            has_device = z3_vars.get('has_device_id', Bool('has_device_id'))
+            return Not(has_device)
+
+        elif constraint_id == 'PHI_URL_DISCLOSURE':
+            has_url = z3_vars.get('has_patient_url', Bool('has_patient_url'))
+            return Not(has_url)
+
+        elif constraint_id == 'PHI_IP_ADDRESS_DISCLOSURE':
+            has_ip = z3_vars.get('has_ip_address', Bool('has_ip_address'))
+            return Not(has_ip)
+
+        elif constraint_id == 'PHI_BIOMETRIC_DISCLOSURE':
+            has_bio = z3_vars.get('has_biometric', Bool('has_biometric'))
+            return Not(has_bio)
+
+        elif constraint_id == 'PHI_PHOTO_DISCLOSURE':
+            has_photo = z3_vars.get('has_photo_reference', Bool('has_photo_reference'))
+            return Not(has_photo)
+
+        elif constraint_id == 'PHI_VEHICLE_ID_DISCLOSURE':
+            has_vehicle = z3_vars.get('has_vehicle_id', Bool('has_vehicle_id'))
+            return Not(has_vehicle)
+
+        elif constraint_id == 'PHI_ACCOUNT_NUMBER_DISCLOSURE':
+            has_account = z3_vars.get('has_account_number', Bool('has_account_number'))
+            return Not(has_account)
+
+        elif constraint_id == 'PHI_LICENSE_NUMBER_DISCLOSURE':
+            has_license = z3_vars.get('has_license_number', Bool('has_license_number'))
+            return Not(has_license)
+
+        # HIPAA De-Identification constraints
+        elif constraint_id == 'DEIDENTIFY_ALL_18':
+            deidentified = z3_vars.get('is_deidentified', Bool('is_deidentified'))
+            phi_count = z3_vars.get('phi_count', Int('phi_count'))
+            return Implies(deidentified, phi_count == 0)
+
+        elif constraint_id == 'DEIDENTIFY_DATES_GENERALIZED':
+            has_date = z3_vars.get('has_specific_date', Bool('has_specific_date'))
+            deidentified = z3_vars.get('is_deidentified', Bool('is_deidentified'))
+            return Or(Not(has_date), deidentified)
+
+        elif constraint_id == 'DEIDENTIFY_AGE_THRESHOLD':
+            age = z3_vars.get('patient_age', Int('patient_age'))
+            aggregated = z3_vars.get('age_aggregated', Bool('age_aggregated'))
+            return Or(age <= 89, aggregated)
+
+        elif constraint_id == 'DEIDENTIFY_RARE_CONDITIONS':
+            rare = z3_vars.get('has_rare_condition', Bool('has_rare_condition'))
+            generalized = z3_vars.get('condition_generalized', Bool('condition_generalized'))
+            return Or(Not(rare), generalized)
+
+        elif constraint_id == 'DEIDENTIFY_GEOGRAPHIC':
+            has_city = z3_vars.get('has_city', Bool('has_city'))
+            deidentified = z3_vars.get('is_deidentified', Bool('is_deidentified'))
+            return Or(Not(has_city), deidentified)
+
+        elif constraint_id == 'DEIDENTIFY_ZIP_CODE':
+            has_zip = z3_vars.get('has_full_zip', Bool('has_full_zip'))
+            return Not(has_zip)
+
+        elif constraint_id == 'DEIDENTIFY_SAFE_HARBOR':
+            claims_sh = z3_vars.get('claims_safe_harbor', Bool('claims_safe_harbor'))
+            phi_count = z3_vars.get('phi_count', Int('phi_count'))
+            safeguard = z3_vars.get('has_safeguard_mention', Bool('has_safeguard_mention'))
+            return Implies(claims_sh, And(phi_count == 0, safeguard))
+
+        elif constraint_id == 'DEIDENTIFY_EXPERT_DETERMINATION':
+            claims_ed = z3_vars.get('claims_expert_determination', Bool('claims_expert_determination'))
+            has_stats = z3_vars.get('has_statistical_mention', Bool('has_statistical_mention'))
+            return Implies(claims_ed, has_stats)
+
+        elif constraint_id == 'DEIDENTIFY_NO_DERIVED_DATA':
+            deidentified = z3_vars.get('is_deidentified', Bool('is_deidentified'))
+            has_derived = z3_vars.get('has_derived_identifier', Bool('has_derived_identifier'))
+            return Implies(deidentified, Not(has_derived))
+
+        # HIPAA Access Control constraints
+        elif constraint_id == 'ACCESS_RECIPIENT_AUTHORIZED':
+            has_phi = z3_vars.get('has_phi', Bool('has_phi'))
+            authorized = z3_vars.get('recipient_authorized', Bool('recipient_authorized'))
+            return Implies(has_phi, authorized)
+
+        elif constraint_id == 'ACCESS_ROLE_PHYSICIAN':
+            has_treatment = z3_vars.get('has_treatment_details', Bool('has_treatment_details'))
+            is_physician = z3_vars.get('recipient_role_physician', Bool('recipient_role_physician'))
+            deidentified = z3_vars.get('is_deidentified', Bool('is_deidentified'))
+            return Implies(has_treatment, Or(is_physician, deidentified))
+
+        elif constraint_id == 'ACCESS_MINIMUM_NECESSARY':
+            phi_count = z3_vars.get('phi_count', Int('phi_count'))
+            threshold = z3_vars.get('minimum_necessary_threshold', Int('minimum_necessary_threshold'))
+            return phi_count <= threshold
+
+        elif constraint_id == 'ACCESS_EXTERNAL_ENCRYPTION':
+            external = z3_vars.get('recipient_external', Bool('recipient_external'))
+            encrypted = z3_vars.get('has_encryption_mention', Bool('has_encryption_mention'))
+            return Implies(external, encrypted)
+
+        elif constraint_id == 'ACCESS_AUDIT_TIMESTAMP':
+            has_ts = z3_vars.get('has_timestamp', Bool('has_timestamp'))
+            return has_ts
+
+        elif constraint_id == 'ACCESS_AUDIT_USER_ID':
+            has_user = z3_vars.get('has_user_identification', Bool('has_user_identification'))
+            return has_user
+
+        elif constraint_id == 'ACCESS_SESSION_VALID':
+            has_session = z3_vars.get('has_session_reference', Bool('has_session_reference'))
+            valid = z3_vars.get('session_valid', Bool('session_valid'))
+            return Implies(has_session, valid)
+
+        elif constraint_id == 'ACCESS_LEAST_PRIVILEGE':
+            is_admin = z3_vars.get('recipient_role_admin', Bool('recipient_role_admin'))
+            has_treatment = z3_vars.get('has_treatment_details', Bool('has_treatment_details'))
+            return Implies(is_admin, Not(has_treatment))
+
+        # HIPAA Safeguard constraints
+        elif constraint_id == 'SAFEGUARD_INTERNAL_USE':
+            has_phi = z3_vars.get('has_phi', Bool('has_phi'))
+            internal = z3_vars.get('has_internal_use_mention', Bool('has_internal_use_mention'))
+            return Implies(has_phi, internal)
+
+        elif constraint_id == 'SAFEGUARD_PHI_REDACTED':
+            safeguard = z3_vars.get('has_safeguard_mention', Bool('has_safeguard_mention'))
+            return safeguard
+
+        elif constraint_id == 'SAFEGUARD_RISK_SCORE':
+            risk = z3_vars.get('risk_score', Int('risk_score'))
+            return risk <= 5
+
+        elif constraint_id == 'SAFEGUARD_ENCRYPTION_PHI':
+            has_phi = z3_vars.get('has_phi', Bool('has_phi'))
+            encrypted = z3_vars.get('has_encryption_mention', Bool('has_encryption_mention'))
+            return Implies(has_phi, encrypted)
+
+        elif constraint_id == 'SAFEGUARD_NO_PRINT_MENTION':
+            has_phi = z3_vars.get('has_phi', Bool('has_phi'))
+            has_print = z3_vars.get('has_print_instruction', Bool('has_print_instruction'))
+            return Not(And(has_phi, has_print))
+
+        elif constraint_id == 'SAFEGUARD_HIPAA_COMPLIANT':
+            has_phi = z3_vars.get('has_phi', Bool('has_phi'))
+            hipaa = z3_vars.get('has_hipaa_mention', Bool('has_hipaa_mention'))
+            return Implies(has_phi, hipaa)
+
+        elif constraint_id == 'SAFEGUARD_ACCESS_LOG':
+            has_treatment = z3_vars.get('has_treatment_details', Bool('has_treatment_details'))
+            audit = z3_vars.get('has_audit_mention', Bool('has_audit_mention'))
+            return Implies(has_treatment, audit)
+
+        elif constraint_id == 'SAFEGUARD_POLICY_REFERENCE':
+            sensitive = z3_vars.get('has_sensitive_diagnosis', Bool('has_sensitive_diagnosis'))
+            policy = z3_vars.get('has_policy_reference', Bool('has_policy_reference'))
+            return Implies(sensitive, policy)
+
+        # HIPAA Breach Notification constraints
+        elif constraint_id == 'BREACH_UNAUTHORIZED_DISCLOSURE':
+            has_phi = z3_vars.get('has_phi', Bool('has_phi'))
+            authorized = z3_vars.get('recipient_authorized', Bool('recipient_authorized'))
+            return Not(And(has_phi, Not(authorized)))
+
+        elif constraint_id == 'BREACH_SENSITIVE_DATA':
+            sensitive = z3_vars.get('has_sensitive_diagnosis', Bool('has_sensitive_diagnosis'))
+            deidentified = z3_vars.get('is_deidentified', Bool('is_deidentified'))
+            authorized = z3_vars.get('recipient_authorized', Bool('recipient_authorized'))
+            return Not(And(sensitive, Not(deidentified), Not(authorized)))
+
+        elif constraint_id == 'BREACH_NO_SAFEGUARDS':
+            has_phi = z3_vars.get('has_phi', Bool('has_phi'))
+            safeguard = z3_vars.get('has_safeguard_mention', Bool('has_safeguard_mention'))
+            return Not(And(has_phi, Not(safeguard)))
+
+        elif constraint_id == 'BREACH_ESCALATION':
+            violations = z3_vars.get('violation_count', Int('violation_count'))
+            return violations <= 2
+
+        # HIPAA Audit constraints
+        elif constraint_id == 'AUDIT_PROOF_CERTIFICATE':
+            complete = z3_vars.get('verification_complete', Bool('verification_complete'))
+            has_proof = z3_vars.get('has_proof', Bool('has_proof'))
+            return Implies(complete, has_proof)
+
+        elif constraint_id == 'AUDIT_RULE_IDENTIFICATION':
+            has_violation = z3_vars.get('has_violation', Bool('has_violation'))
+            has_citation = z3_vars.get('has_rule_citation', Bool('has_rule_citation'))
+            return Implies(has_violation, has_citation)
+
+        elif constraint_id == 'AUDIT_RETENTION':
+            has_retention = z3_vars.get('has_retention_policy', Bool('has_retention_policy'))
+            return has_retention
+
+        elif constraint_id == 'AUDIT_IMMUTABILITY':
+            has_audit = z3_vars.get('has_audit_mention', Bool('has_audit_mention'))
+            immutable = z3_vars.get('audit_immutable', Bool('audit_immutable'))
+            return Implies(has_audit, immutable)
+
+        elif constraint_id == 'AUDIT_CHAIN_OF_CUSTODY':
+            has_phi = z3_vars.get('has_phi', Bool('has_phi'))
+            chain = z3_vars.get('has_chain_of_custody', Bool('has_chain_of_custody'))
+            return Implies(has_phi, chain)
+
+        # HIPAA Clinical Safety
+        elif constraint_id == 'TREATMENT_ALLERGY_DISCLOSURE':
+            has_allergy = z3_vars.get('has_allergy_info', Bool('has_allergy_info'))
+            external = z3_vars.get('recipient_external', Bool('recipient_external'))
+            authorized = z3_vars.get('recipient_authorized', Bool('recipient_authorized'))
+            return Not(And(has_allergy, external, Not(authorized)))
+
         # Default to True (constraint satisfied)
         return BoolVal(True)
     
