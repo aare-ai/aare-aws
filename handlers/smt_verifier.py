@@ -259,6 +259,10 @@ class SMTVerifier:
             return signals == False
 
         # Fair Lending constraints
+        elif constraint_id == 'LOAN_AMOUNT_LIMIT':
+            amount = z3_vars.get('loan_amount', Int('loan_amount'))
+            return amount <= 100000
+
         elif constraint_id == 'MAX_DTI':
             dti = z3_vars.get('dti', Real('dti'))
             return dti <= 43
@@ -266,6 +270,14 @@ class SMTVerifier:
         elif constraint_id == 'MIN_CREDIT_SCORE':
             score = z3_vars.get('credit_score', Int('credit_score'))
             return score >= 600
+
+        elif constraint_id == 'DOWN_PAYMENT':
+            dp = z3_vars.get('down_payment', Real('down_payment'))
+            return dp >= 5
+
+        elif constraint_id == 'EMPLOYMENT_VERIFICATION':
+            verified = z3_vars.get('employment_verified', Bool('employment_verified'))
+            return verified == True
 
         # Default to True (constraint satisfied)
         return BoolVal(True)

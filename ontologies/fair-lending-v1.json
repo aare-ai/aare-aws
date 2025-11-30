@@ -62,15 +62,15 @@
   "extractors": {
     "loan_amount": {
       "type": "int",
-      "pattern": "\\$?([\\d,]+)k?\\s*(?:loan|mortgage)"
+      "pattern": "\\$([\\d,]+)(?:k|K)?"
     },
     "credit_score": {
       "type": "int",
-      "pattern": "(?:credit|score)[:\\s]*(\\d{3})"
+      "pattern": "(?:credit\\s*score|fico|score)\\s*(?:is|of|:)?\\s*(\\d{3})"
     },
     "dti": {
       "type": "float",
-      "pattern": "dti[:\\s]*(\\d+(?:\\.\\d+)?)%?"
+      "pattern": "(?:debt-to-income|dti)(?:\\s*ratio)?\\s*(?:is|of|:)?\\s*(?:calculated\\s+at\\s+)?([\\d.]+)\\s*%?"
     },
     "down_payment": {
       "type": "float",
