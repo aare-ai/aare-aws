@@ -47,6 +47,12 @@ class OntologyLoader:
                     "category": "ATR/QM",
                     "description": "Debt-to-income ratio requirements",
                     "formula_readable": "(dti ≤ 43) ∨ (compensating_factors ≥ 2)",
+                    "formula": {
+                        "or": [
+                            {"<=": ["dti", 43]},
+                            {">=": ["compensating_factors", 2]}
+                        ]
+                    },
                     "variables": [
                         {"name": "dti", "type": "real"},
                         {"name": "compensating_factors", "type": "int"}
@@ -59,6 +65,12 @@ class OntologyLoader:
                     "category": "HOEPA",
                     "description": "High-cost mortgage counseling requirement",
                     "formula_readable": "(fee_percentage < 8) ∨ counseling_disclosed",
+                    "formula": {
+                        "or": [
+                            {"<": ["fee_percentage", 8]},
+                            {"==": ["counseling_disclosed", True]}
+                        ]
+                    },
                     "variables": [
                         {"name": "fee_percentage", "type": "real"},
                         {"name": "counseling_disclosed", "type": "bool"}
@@ -71,6 +83,14 @@ class OntologyLoader:
                     "category": "UDAAP",
                     "description": "Prohibition on guarantee language",
                     "formula_readable": "¬(has_guarantee ∧ has_approval)",
+                    "formula": {
+                        "not": {
+                            "and": [
+                                {"==": ["has_guarantee", True]},
+                                {"==": ["has_approval", True]}
+                            ]
+                        }
+                    },
                     "variables": [
                         {"name": "has_guarantee", "type": "bool"},
                         {"name": "has_approval", "type": "bool"}
@@ -83,6 +103,12 @@ class OntologyLoader:
                     "category": "Escrow",
                     "description": "Escrow requirements based on FICO",
                     "formula_readable": "(credit_score ≥ 620) ∨ ¬escrow_waived",
+                    "formula": {
+                        "or": [
+                            {">=": ["credit_score", 620]},
+                            {"==": ["escrow_waived", False]}
+                        ]
+                    },
                     "variables": [
                         {"name": "credit_score", "type": "int"},
                         {"name": "escrow_waived", "type": "bool"}
@@ -95,6 +121,12 @@ class OntologyLoader:
                     "category": "Regulation B",
                     "description": "Adverse action disclosure requirements",
                     "formula_readable": "is_denial → has_specific_reason",
+                    "formula": {
+                        "implies": [
+                            {"==": ["is_denial", True]},
+                            {"==": ["has_specific_reason", True]}
+                        ]
+                    },
                     "variables": [
                         {"name": "is_denial", "type": "bool"},
                         {"name": "has_specific_reason", "type": "bool"}
