@@ -12,6 +12,13 @@ provider:
     apiKeys:
       - name: aare-ai-key-${self:provider.stage}
         description: API key for aare.ai ${self:provider.stage}
+    usagePlan:
+      quota:
+        limit: 1000
+        period: DAY
+      throttle:
+        burstLimit: 20
+        rateLimit: 10
   iam:
     role:
       statements:
@@ -52,7 +59,11 @@ functions:
           path: /verify
           method: post
           cors:
-            origin: '*'
+            origins:
+              - https://aare.ai
+              - https://www.aare.ai
+              - http://localhost:8000
+              - http://localhost:3000
             headers:
               - Content-Type
               - X-Amz-Date
@@ -69,7 +80,7 @@ resources:
       Type: AWS::ApiGateway::GatewayResponse
       Properties:
         ResponseParameters:
-          gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
+          gatewayresponse.header.Access-Control-Allow-Origin: "'https://aare.ai'"
           gatewayresponse.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
           gatewayresponse.header.Access-Control-Allow-Methods: "'OPTIONS,POST'"
         ResponseType: DEFAULT_4XX
@@ -79,7 +90,7 @@ resources:
       Type: AWS::ApiGateway::GatewayResponse
       Properties:
         ResponseParameters:
-          gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
+          gatewayresponse.header.Access-Control-Allow-Origin: "'https://aare.ai'"
           gatewayresponse.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
           gatewayresponse.header.Access-Control-Allow-Methods: "'OPTIONS,POST'"
         ResponseType: DEFAULT_5XX

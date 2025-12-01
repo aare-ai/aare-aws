@@ -8,6 +8,7 @@
       "category": "Privacy",
       "description": "Prohibition on mentioning real individuals",
       "formula_readable": "¬mentions_real_people",
+      "formula": {"==": ["mentions_real_people", false]},
       "variables": [
         {"name": "mentions_real_people", "type": "bool"}
       ],
@@ -19,6 +20,7 @@
       "category": "Neutrality",
       "description": "Prohibition on religious references",
       "formula_readable": "¬has_religious_content",
+      "formula": {"==": ["has_religious_content", false]},
       "variables": [
         {"name": "has_religious_content", "type": "bool"}
       ],
@@ -30,6 +32,7 @@
       "category": "Safety",
       "description": "Prohibition on medical advice",
       "formula_readable": "¬provides_medical_advice",
+      "formula": {"==": ["provides_medical_advice", false]},
       "variables": [
         {"name": "provides_medical_advice", "type": "bool"}
       ],
@@ -41,6 +44,7 @@
       "category": "Neutrality",
       "description": "Prohibition on political content",
       "formula_readable": "¬has_political_content",
+      "formula": {"==": ["has_political_content", false]},
       "variables": [
         {"name": "has_political_content", "type": "bool"}
       ],
@@ -52,6 +56,7 @@
       "category": "Safety",
       "description": "Content must be age-appropriate",
       "formula_readable": "¬has_adult_content",
+      "formula": {"==": ["has_adult_content", false]},
       "variables": [
         {"name": "has_adult_content", "type": "bool"}
       ],

@@ -8,6 +8,7 @@
       "category": "Pricing",
       "description": "Maximum discount authority",
       "formula_readable": "discount_percentage <= 10",
+      "formula": {"<=": ["discount_percentage", 10]},
       "variables": [
         {"name": "discount_percentage", "type": "real"}
       ],
@@ -19,6 +20,7 @@
       "category": "Fulfillment",
       "description": "Minimum delivery time promise",
       "formula_readable": "delivery_hours >= 48",
+      "formula": {">=": ["delivery_hours", 48]},
       "variables": [
         {"name": "delivery_hours", "type": "int"}
       ],
@@ -30,6 +32,7 @@
       "category": "Legal",
       "description": "Prohibition on admitting fault",
       "formula_readable": "¬admits_fault",
+      "formula": {"==": ["admits_fault", false]},
       "variables": [
         {"name": "admits_fault", "type": "bool"}
       ],
@@ -41,6 +44,7 @@
       "category": "Security",
       "description": "Prohibition on revealing internal processes",
       "formula_readable": "¬reveals_internal",
+      "formula": {"==": ["reveals_internal", false]},
       "variables": [
         {"name": "reveals_internal", "type": "bool"}
       ],
@@ -52,6 +56,12 @@
       "category": "Refunds",
       "description": "Refund must follow policy",
       "formula_readable": "(refund_amount <= order_value) ∧ (refund_amount <= 500)",
+      "formula": {
+        "and": [
+          {"<=": ["refund_amount", {"var": "order_value"}]},
+          {"<=": ["refund_amount", 500]}
+        ]
+      },
       "variables": [
         {"name": "refund_amount", "type": "real"},
         {"name": "order_value", "type": "real"}

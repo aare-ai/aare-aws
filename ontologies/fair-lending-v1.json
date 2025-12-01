@@ -8,6 +8,7 @@
       "category": "Approval Authority",
       "description": "Maximum loan amount without additional approval",
       "formula_readable": "loan_amount <= 100000",
+      "formula": {"<=": ["loan_amount", 100000]},
       "variables": [
         {"name": "loan_amount", "type": "int"}
       ],
@@ -19,6 +20,7 @@
       "category": "Creditworthiness",
       "description": "Minimum credit score requirement",
       "formula_readable": "credit_score >= 600",
+      "formula": {">=": ["credit_score", 600]},
       "variables": [
         {"name": "credit_score", "type": "int"}
       ],
@@ -30,6 +32,7 @@
       "category": "Debt Capacity",
       "description": "Maximum debt-to-income ratio",
       "formula_readable": "dti <= 43",
+      "formula": {"<=": ["dti", 43]},
       "variables": [
         {"name": "dti", "type": "real"}
       ],
@@ -41,6 +44,7 @@
       "category": "Equity",
       "description": "Minimum down payment requirement",
       "formula_readable": "down_payment >= 5",
+      "formula": {">=": ["down_payment", 5]},
       "variables": [
         {"name": "down_payment", "type": "real"}
       ],
@@ -52,6 +56,7 @@
       "category": "Income",
       "description": "Employment must be verified",
       "formula_readable": "employment_verified",
+      "formula": {"==": ["employment_verified", true]},
       "variables": [
         {"name": "employment_verified", "type": "bool"}
       ],
@@ -74,7 +79,7 @@
     },
     "down_payment": {
       "type": "float",
-      "pattern": "(?:down payment|dp)[:\\s]*(\\d+(?:\\.\\d+)?)%?"
+      "pattern": "(?:down payment|dp)(?:[:\\s]+|\\s+of\\s+)(\\d+(?:\\.\\d+)?)%?"
     },
     "employment_verified": {
       "type": "boolean",

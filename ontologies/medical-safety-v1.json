@@ -8,6 +8,12 @@
       "category": "Kidney Function",
       "description": "Metformin contraindication based on kidney function",
       "formula_readable": "(egfr >= 45) ∨ ¬recommends_metformin",
+      "formula": {
+        "or": [
+          {">=": ["egfr", 45]},
+          {"==": ["recommends_metformin", false]}
+        ]
+      },
       "variables": [
         {"name": "egfr", "type": "int"},
         {"name": "recommends_metformin", "type": "bool"}
@@ -19,10 +25,18 @@
       "id": "EGFR_DOSE_LIMIT",
       "category": "Dosage",
       "description": "Maximum metformin dose based on kidney function",
-      "formula_readable": "(egfr >= 60) ∨ (metformin_dose <= 1000)",
+      "formula_readable": "¬recommends_metformin ∨ (egfr >= 60) ∨ (metformin_dose <= 1000)",
+      "formula": {
+        "or": [
+          {"==": ["recommends_metformin", false]},
+          {">=": ["egfr", 60]},
+          {"<=": ["metformin_dose", 1000]}
+        ]
+      },
       "variables": [
         {"name": "egfr", "type": "int"},
-        {"name": "metformin_dose", "type": "int"}
+        {"name": "metformin_dose", "type": "int"},
+        {"name": "recommends_metformin", "type": "bool"}
       ],
       "error_message": "Maximum metformin dose 1000mg/day when eGFR 45-60",
       "citation": "FDA Dosing Guidelines"
@@ -32,6 +46,12 @@
       "category": "Specialist Referral",
       "description": "Nephrology referral based on creatinine levels",
       "formula_readable": "(creatinine <= 1.5) ∨ nephro_referral",
+      "formula": {
+        "or": [
+          {"<=": ["creatinine", 1.5]},
+          {"==": ["nephro_referral", true]}
+        ]
+      },
       "variables": [
         {"name": "creatinine", "type": "real"},
         {"name": "nephro_referral", "type": "bool"}
@@ -44,6 +64,14 @@
       "category": "Drug Safety",
       "description": "Check for contraindicated drug combinations",
       "formula_readable": "¬(ace_inhibitor ∧ potassium_sparing)",
+      "formula": {
+        "not": {
+          "and": [
+            {"==": ["ace_inhibitor", true]},
+            {"==": ["potassium_sparing", true]}
+          ]
+        }
+      },
       "variables": [
         {"name": "ace_inhibitor", "type": "bool"},
         {"name": "potassium_sparing", "type": "bool"}
@@ -56,6 +84,12 @@
       "category": "Glycemic Control",
       "description": "Treatment appropriateness based on HbA1c",
       "formula_readable": "(hba1c <= 7.0) ∨ treatment_escalation",
+      "formula": {
+        "or": [
+          {"<=": ["hba1c", 7.0]},
+          {"==": ["treatment_escalation", true]}
+        ]
+      },
       "variables": [
         {"name": "hba1c", "type": "real"},
         {"name": "treatment_escalation", "type": "bool"}

@@ -8,6 +8,7 @@
       "category": "Concentration Risk",
       "description": "Maximum sector exposure limit",
       "formula_readable": "tech_exposure <= 40",
+      "formula": {"<=": ["tech_exposure", 40]},
       "variables": [
         {"name": "tech_exposure", "type": "real"}
       ],
@@ -19,6 +20,7 @@
       "category": "Position Sizing",
       "description": "Single position size limit",
       "formula_readable": "position_size <= 10",
+      "formula": {"<=": ["position_size", 10]},
       "variables": [
         {"name": "position_size", "type": "real"}
       ],
@@ -30,6 +32,7 @@
       "category": "Liquidity",
       "description": "Daily trading volume limit",
       "formula_readable": "daily_volume <= 10000000",
+      "formula": {"<=": ["daily_volume", 10000000]},
       "variables": [
         {"name": "daily_volume", "type": "int"}
       ],
@@ -41,6 +44,17 @@
       "category": "Compliance",
       "description": "Client consent required for limit exceptions",
       "formula_readable": "(within_limits) ∨ (client_consent ∧ documented)",
+      "formula": {
+        "or": [
+          {"==": ["within_limits", true]},
+          {
+            "and": [
+              {"==": ["client_consent", true]},
+              {"==": ["documented", true]}
+            ]
+          }
+        ]
+      },
       "variables": [
         {"name": "within_limits", "type": "bool"},
         {"name": "client_consent", "type": "bool"},
@@ -54,6 +68,7 @@
       "category": "Suitability",
       "description": "Trade must match client risk tolerance",
       "formula_readable": "trade_risk <= client_risk_level",
+      "formula": {"<=": ["trade_risk", {"var": "client_risk_level"}]},
       "variables": [
         {"name": "trade_risk", "type": "int"},
         {"name": "client_risk_level", "type": "int"}

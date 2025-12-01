@@ -8,6 +8,7 @@
       "category": "Investment Advice",
       "description": "Prohibition on recommending specific securities",
       "formula_readable": "¬recommends_specific_securities",
+      "formula": {"==": ["recommends_specific_securities", false]},
       "variables": [
         {"name": "recommends_specific_securities", "type": "bool"}
       ],
@@ -19,6 +20,7 @@
       "category": "Disclosures",
       "description": "Prohibition on guaranteeing returns",
       "formula_readable": "¬guarantees_returns",
+      "formula": {"==": ["guarantees_returns", false]},
       "variables": [
         {"name": "guarantees_returns", "type": "bool"}
       ],
@@ -30,6 +32,12 @@
       "category": "Disclosures",
       "description": "Financial advice requires disclaimer",
       "formula_readable": "¬is_financial_advice ∨ has_disclaimer",
+      "formula": {
+        "or": [
+          {"==": ["is_financial_advice", false]},
+          {"==": ["has_disclaimer", true]}
+        ]
+      },
       "variables": [
         {"name": "is_financial_advice", "type": "bool"},
         {"name": "has_disclaimer", "type": "bool"}
@@ -42,6 +50,7 @@
       "category": "Investment Advice",
       "description": "Prohibition on buy/sell recommendations",
       "formula_readable": "¬has_buy_sell_recommendation",
+      "formula": {"==": ["has_buy_sell_recommendation", false]},
       "variables": [
         {"name": "has_buy_sell_recommendation", "type": "bool"}
       ],
@@ -53,6 +62,7 @@
       "category": "Compliance",
       "description": "Advice must consider suitability",
       "formula_readable": "considers_suitability",
+      "formula": {"==": ["considers_suitability", true]},
       "variables": [
         {"name": "considers_suitability", "type": "bool"}
       ],

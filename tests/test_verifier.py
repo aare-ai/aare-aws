@@ -27,6 +27,12 @@ class TestSMTVerifier:
                     "category": "ATR/QM",
                     "description": "Debt-to-income ratio requirements",
                     "formula_readable": "(dti ≤ 43) ∨ (compensating_factors ≥ 2)",
+                    "formula": {
+                        "or": [
+                            {"<=": ["dti", 43]},
+                            {">=": ["compensating_factors", 2]}
+                        ]
+                    },
                     "variables": [
                         {"name": "dti", "type": "real"},
                         {"name": "compensating_factors", "type": "int"}
@@ -39,6 +45,14 @@ class TestSMTVerifier:
                     "category": "UDAAP",
                     "description": "Prohibition on guarantee language",
                     "formula_readable": "¬(has_guarantee ∧ has_approval)",
+                    "formula": {
+                        "not": {
+                            "and": [
+                                {"==": ["has_guarantee", True]},
+                                {"==": ["has_approval", True]}
+                            ]
+                        }
+                    },
                     "variables": [
                         {"name": "has_guarantee", "type": "bool"},
                         {"name": "has_approval", "type": "bool"}
@@ -163,6 +177,12 @@ class TestMedicalOntology:
                     "category": "Kidney Function",
                     "description": "Metformin contraindication based on kidney function",
                     "formula_readable": "(egfr >= 45) ∨ ¬recommends_metformin",
+                    "formula": {
+                        "or": [
+                            {">=": ["egfr", 45]},
+                            {"==": ["recommends_metformin", False]}
+                        ]
+                    },
                     "variables": [
                         {"name": "egfr", "type": "int"},
                         {"name": "recommends_metformin", "type": "bool"}
@@ -175,6 +195,14 @@ class TestMedicalOntology:
                     "category": "Drug Safety",
                     "description": "Check for contraindicated drug combinations",
                     "formula_readable": "¬(ace_inhibitor ∧ potassium_sparing)",
+                    "formula": {
+                        "not": {
+                            "and": [
+                                {"==": ["ace_inhibitor", True]},
+                                {"==": ["potassium_sparing", True]}
+                            ]
+                        }
+                    },
                     "variables": [
                         {"name": "ace_inhibitor", "type": "bool"},
                         {"name": "potassium_sparing", "type": "bool"}

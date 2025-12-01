@@ -8,6 +8,7 @@
       "category": "Interest Rate",
       "description": "Maximum annual interest rate (usury law)",
       "formula_readable": "annual_rate <= 25",
+      "formula": {"<=": ["annual_rate", 25]},
       "variables": [
         {"name": "annual_rate", "type": "real"}
       ],
@@ -19,6 +20,7 @@
       "category": "Payment",
       "description": "Maximum payment terms",
       "formula_readable": "payment_days <= 120",
+      "formula": {"<=": ["payment_days", 120]},
       "variables": [
         {"name": "payment_days", "type": "int"}
       ],
@@ -30,6 +32,7 @@
       "category": "Fees",
       "description": "Maximum monthly late fee",
       "formula_readable": "monthly_late_fee <= 1.5",
+      "formula": {"<=": ["monthly_late_fee", 1.5]},
       "variables": [
         {"name": "monthly_late_fee", "type": "real"}
       ],
@@ -41,6 +44,7 @@
       "category": "Jurisdiction",
       "description": "Valid governing law jurisdiction",
       "formula_readable": "valid_jurisdiction",
+      "formula": {"==": ["valid_jurisdiction", true]},
       "variables": [
         {"name": "valid_jurisdiction", "type": "bool"}
       ],
@@ -52,6 +56,7 @@
       "category": "Fairness",
       "description": "Terms must not be unconscionable",
       "formula_readable": "¬unconscionable_terms",
+      "formula": {"==": ["unconscionable_terms", false]},
       "variables": [
         {"name": "unconscionable_terms", "type": "bool"}
       ],

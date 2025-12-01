@@ -8,6 +8,7 @@
       "category": "Privacy",
       "description": "Prohibition on exposing PII",
       "formula_readable": "¬exposes_pii",
+      "formula": {"==": ["exposes_pii", false]},
       "variables": [
         {"name": "exposes_pii", "type": "bool"}
       ],
@@ -19,6 +20,7 @@
       "category": "Security",
       "description": "Prohibition on internal URLs",
       "formula_readable": "¬reveals_internal_urls",
+      "formula": {"==": ["reveals_internal_urls", false]},
       "variables": [
         {"name": "reveals_internal_urls", "type": "bool"}
       ],
@@ -30,6 +32,7 @@
       "category": "Security",
       "description": "Prohibition on exposing credentials",
       "formula_readable": "¬shares_credentials",
+      "formula": {"==": ["shares_credentials", false]},
       "variables": [
         {"name": "shares_credentials", "type": "bool"}
       ],
@@ -41,6 +44,7 @@
       "category": "Security",
       "description": "Prohibition on database names",
       "formula_readable": "¬reveals_db_names",
+      "formula": {"==": ["reveals_db_names", false]},
       "variables": [
         {"name": "reveals_db_names", "type": "bool"}
       ],
@@ -52,6 +56,7 @@
       "category": "Privacy",
       "description": "Only necessary data should be disclosed",
       "formula_readable": "¬excessive_data_disclosure",
+      "formula": {"==": ["excessive_data_disclosure", false]},
       "variables": [
         {"name": "excessive_data_disclosure", "type": "bool"}
       ],
