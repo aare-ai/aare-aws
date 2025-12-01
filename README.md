@@ -108,6 +108,12 @@ Ontologies define your verification rules. Each constraint specifies:
       "category": "ATR/QM",
       "description": "Debt-to-income ratio requirements",
       "formula_readable": "(dti ≤ 43) ∨ (compensating_factors ≥ 2)",
+      "formula": {
+        "or": [
+          {"<=": ["dti", 43]},
+          {">=": ["compensating_factors", 2]}
+        ]
+      },
       "variables": [
         {"name": "dti", "type": "real"},
         {"name": "compensating_factors", "type": "int"}
@@ -125,35 +131,53 @@ Ontologies define your verification rules. Each constraint specifies:
 }
 ```
 
+### Formula Syntax
+
+Constraints use structured JSON formulas that compile directly to Z3 expressions:
+
+| Operator | Syntax | Example |
+|----------|--------|---------|
+| And | `{"and": [...]}` | `{"and": [{"<=": ["x", 10]}, {">=": ["y", 0]}]}` |
+| Or | `{"or": [...]}` | `{"or": [{"==": ["approved", true]}, {">=": ["score", 700]}]}` |
+| Not | `{"not": {...}}` | `{"not": {"==": ["has_phi", true]}}` |
+| Implies | `{"implies": [A, B]}` | `{"implies": [{"==": ["is_denial", true]}, {"==": ["has_reason", true]}]}` |
+| Equals | `{"==": [a, b]}` | `{"==": ["status", true]}` |
+| Less/Greater | `{"<=": [a, b]}` | `{"<=": ["dti", 43]}` |
+| Variable Ref | `{"var": "name"}` | `{"<=": ["amount", {"var": "limit"}]}` |
+
 ### Included Ontologies
 
-| Ontology | Domain | Constraints |
-|----------|--------|-------------|
-| `mortgage-compliance-v1` | Lending | ATR/QM, HOEPA, UDAAP, Reg B |
-| `medical-safety-v1` | Healthcare | Drug interactions, dosing limits, referrals |
-| `financial-compliance-v1` | Finance | Investment advice, disclaimers, suitability |
-| `data-privacy-v1` | Security | PII, credentials, internal URLs |
-| `customer-service-v1` | Support | Discount limits, delivery promises, fault admission |
-| `fair-lending-v1` | Lending | DTI limits, credit score requirements |
-| `trading-compliance-v1` | Trading | Position limits, sector exposure |
-| `content-policy-v1` | Content | Real people, religious content, medical advice |
-| `contract-compliance-v1` | Legal | Usury limits, late fee caps |
+| Ontology | Domain | Constraints | Description |
+|----------|--------|-------------|-------------|
+| `hipaa-v1` | Healthcare | 52 | HIPAA Privacy & Security Rule (PHI, de-identification, access control) |
+| `mortgage-compliance-v1` | Lending | 5 | ATR/QM, HOEPA, UDAAP, Reg B |
+| `medical-safety-v1` | Healthcare | 5 | Drug interactions, dosing limits, referrals |
+| `financial-compliance-v1` | Finance | 5 | Investment advice, disclaimers, suitability |
+| `data-privacy-v1` | Security | 5 | PII, credentials, internal URLs |
+| `customer-service-v1` | Support | 5 | Discount limits, delivery promises, fault admission |
+| `fair-lending-v1` | Lending | 5 | DTI limits, credit score requirements |
+| `trading-compliance-v1` | Trading | 5 | Position limits, sector exposure |
+| `content-policy-v1` | Content | 5 | Real people, religious content, medical advice |
+| `contract-compliance-v1` | Legal | 5 | Usury limits, late fee caps |
 
 ## Project Structure
 
 ```
 aare-aws/
 ├── handlers/
-│   ├── handler.py          # Lambda entry point
+│   ├── handler.py           # Lambda entry point
 │   ├── llm_parser.py        # Extract data from LLM output
+│   ├── formula_compiler.py  # Compile JSON formulas to Z3 expressions
 │   ├── smt_verifier.py      # Z3 constraint verification
 │   └── ontology_loader.py   # Load ontologies from S3
-├── ontologies/              # Compliance rule definitions
+├── ontologies/              # Compliance rule definitions (100 constraints)
+│   ├── hipaa-v1.json        # 52 HIPAA constraints
 │   ├── mortgage-compliance-v1.json
 │   ├── medical-safety-v1.json
 │   └── ...
 ├── tests/
 │   ├── test_verifier.py
+│   ├── test_formula_compiler.py
 │   └── test_parser.py
 ├── serverless.yml           # AWS deployment config
 └── requirements.txt
