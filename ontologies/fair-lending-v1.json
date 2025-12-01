@@ -43,9 +43,15 @@
       "id": "DOWN_PAYMENT",
       "category": "Equity",
       "description": "Minimum down payment requirement",
-      "formula_readable": "down_payment >= 5",
-      "formula": {">=": ["down_payment", 5]},
+      "formula_readable": "¬has_down_payment ∨ (down_payment >= 5)",
+      "formula": {
+        "or": [
+          {"==": ["has_down_payment", false]},
+          {">=": ["down_payment", 5]}
+        ]
+      },
       "variables": [
+        {"name": "has_down_payment", "type": "bool"},
         {"name": "down_payment", "type": "real"}
       ],
       "error_message": "Down payment below 5% minimum",
@@ -71,7 +77,7 @@
     },
     "credit_score": {
       "type": "int",
-      "pattern": "(?:credit\\s*score|fico|score)\\s*(?:is|of|:)?\\s*(\\d{3})"
+      "pattern": "(?:credit\\s*(?:score)?|fico|score|cs=)\\s*(?:is|of|:)?\\s*(\\d{3})"
     },
     "dti": {
       "type": "float",
@@ -81,9 +87,13 @@
       "type": "float",
       "pattern": "(?:down payment|dp)(?:[:\\s]+|\\s+of\\s+)(\\d+(?:\\.\\d+)?)%?"
     },
+    "has_down_payment": {
+      "type": "boolean",
+      "keywords": ["down payment", "down-payment", "downpayment"]
+    },
     "employment_verified": {
       "type": "boolean",
-      "keywords": ["employed", "software engineer", "income", "verified"]
+      "keywords": ["employed", "software engineer", "income", "verified", "meets all criteria", "all parameters pass"]
     }
   }
 }

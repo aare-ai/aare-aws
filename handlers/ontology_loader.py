@@ -4,14 +4,12 @@ Loads verification rules from S3 or returns default if S3 fails
 """
 import json
 import boto3
-from functools import lru_cache
 
 class OntologyLoader:
     def __init__(self, bucket='aare-ai-ontologies-prod'):
         self.s3 = boto3.client('s3')
         self.bucket = bucket
         
-    @lru_cache(maxsize=10)
     def load(self, ontology_name):
         """Load ontology from S3 or return default"""
         try:

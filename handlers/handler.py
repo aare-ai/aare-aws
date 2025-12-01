@@ -1,5 +1,6 @@
 """
 aare.ai - Main verification handler
+Version: 2.0.1
 """
 import json
 import uuid
@@ -8,7 +9,6 @@ from handlers.ontology_loader import OntologyLoader
 from handlers.llm_parser import LLMParser
 from handlers.smt_verifier import SMTVerifier
 
-ontology_loader = OntologyLoader()
 llm_parser = LLMParser()
 smt_verifier = SMTVerifier()
 
@@ -27,9 +27,20 @@ def handler(event, context):
         body = json.loads(event.get('body', '{}'))
         llm_output = body.get('llm_output', '')
         ontology_name = body.get('ontology', 'mortgage-compliance-v1')
-        
-        # Load ontology
-        ontology = ontology_loader.load(ontology_name)
+
+        # Load ontology (fresh each request to pick up S3 changes)
+        ontology_loader = OntologyLoader()
+        try:
+            ontology = ontology_loader.load(ontology_name)
+        except Exception as load_err:
+            return {
+                'statusCode': 500,
+                'headers': _cors_headers(),
+                'body': json.dumps({
+                    'error': f'Ontology load failed: {str(load_err)}',
+                    'ontology_name': ontology_name
+                })
+            }
         
         # Parse LLM output into structured data
         extracted_data = llm_parser.parse(llm_output, ontology)

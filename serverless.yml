@@ -14,11 +14,11 @@ provider:
         description: API key for aare.ai ${self:provider.stage}
     usagePlan:
       quota:
-        limit: 1000
+        limit: 100000
         period: DAY
       throttle:
-        burstLimit: 20
-        rateLimit: 10
+        burstLimit: 500
+        rateLimit: 200
   iam:
     role:
       statements:
@@ -43,6 +43,7 @@ package:
     - '!demo-ui/**'
     - '!tests/**'
     - '!.git/**'
+    - '!ontologies/**'
     - handlers/**
     - requirements.txt
 

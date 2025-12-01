@@ -7,9 +7,15 @@
       "id": "USURY_LIMIT",
       "category": "Interest Rate",
       "description": "Maximum annual interest rate (usury law)",
-      "formula_readable": "annual_rate <= 25",
-      "formula": {"<=": ["annual_rate", 25]},
+      "formula_readable": "rejects_terms ∨ (annual_rate <= 25)",
+      "formula": {
+        "or": [
+          {"==": ["rejects_terms", true]},
+          {"<=": ["annual_rate", 25]}
+        ]
+      },
       "variables": [
+        {"name": "rejects_terms", "type": "bool"},
         {"name": "annual_rate", "type": "real"}
       ],
       "error_message": "Interest rate exceeds 25% APR usury limit",
@@ -31,9 +37,15 @@
       "id": "LATE_FEE_CAP",
       "category": "Fees",
       "description": "Maximum monthly late fee",
-      "formula_readable": "monthly_late_fee <= 1.5",
-      "formula": {"<=": ["monthly_late_fee", 1.5]},
+      "formula_readable": "rejects_terms ∨ (monthly_late_fee <= 1.5)",
+      "formula": {
+        "or": [
+          {"==": ["rejects_terms", true]},
+          {"<=": ["monthly_late_fee", 1.5]}
+        ]
+      },
       "variables": [
+        {"name": "rejects_terms", "type": "bool"},
         {"name": "monthly_late_fee", "type": "real"}
       ],
       "error_message": "Monthly late fee exceeds 1.5% cap",
@@ -43,9 +55,15 @@
       "id": "GOVERNING_LAW",
       "category": "Jurisdiction",
       "description": "Valid governing law jurisdiction",
-      "formula_readable": "valid_jurisdiction",
-      "formula": {"==": ["valid_jurisdiction", true]},
+      "formula_readable": "rejects_terms ∨ valid_jurisdiction",
+      "formula": {
+        "or": [
+          {"==": ["rejects_terms", true]},
+          {"==": ["valid_jurisdiction", true]}
+        ]
+      },
       "variables": [
+        {"name": "rejects_terms", "type": "bool"},
         {"name": "valid_jurisdiction", "type": "bool"}
       ],
       "error_message": "Invalid or unenforceable jurisdiction",
@@ -88,6 +106,10 @@
     "unconscionable_terms": {
       "type": "boolean",
       "keywords": ["forfeit all", "waive all rights", "unlimited liability"]
+    },
+    "rejects_terms": {
+      "type": "boolean",
+      "keywords": ["require revision", "requires revision", "exceeding", "violate", "not enforceable", "unenforceable", "recommend reducing", "cannot accept", "reject"]
     }
   }
 }

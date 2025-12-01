@@ -7,9 +7,15 @@
       "id": "SECTOR_LIMIT",
       "category": "Concentration Risk",
       "description": "Maximum sector exposure limit",
-      "formula_readable": "tech_exposure <= 40",
-      "formula": {"<=": ["tech_exposure", 40]},
+      "formula_readable": "rejects_trade ∨ (tech_exposure <= 40)",
+      "formula": {
+        "or": [
+          {"==": ["rejects_trade", true]},
+          {"<=": ["tech_exposure", 40]}
+        ]
+      },
       "variables": [
+        {"name": "rejects_trade", "type": "bool"},
         {"name": "tech_exposure", "type": "real"}
       ],
       "error_message": "Technology sector exposure exceeds 40% limit",
@@ -43,9 +49,10 @@
       "id": "CLIENT_CONSENT",
       "category": "Compliance",
       "description": "Client consent required for limit exceptions",
-      "formula_readable": "(within_limits) ∨ (client_consent ∧ documented)",
+      "formula_readable": "rejects_trade ∨ (within_limits) ∨ (client_consent ∧ documented)",
       "formula": {
         "or": [
+          {"==": ["rejects_trade", true]},
           {"==": ["within_limits", true]},
           {
             "and": [
@@ -56,6 +63,7 @@
         ]
       },
       "variables": [
+        {"name": "rejects_trade", "type": "bool"},
         {"name": "within_limits", "type": "bool"},
         {"name": "client_consent", "type": "bool"},
         {"name": "documented", "type": "bool"}
@@ -92,7 +100,7 @@
     },
     "within_limits": {
       "type": "boolean",
-      "keywords": ["within limit", "compliant", "acceptable"]
+      "keywords": ["within limit", "within limits", "meets all limits", "compliant with limits"]
     },
     "client_consent": {
       "type": "boolean",
@@ -105,6 +113,10 @@
     "exceeds_limit": {
       "type": "boolean",
       "keywords": ["exceeds", "over", "above limit", "47%", "45%"]
+    },
+    "rejects_trade": {
+      "type": "boolean",
+      "keywords": ["cannot execute", "do not recommend", "recommend reducing", "recommend not", "exceeding the", "should not proceed", "rebalancing first"]
     }
   }
 }
