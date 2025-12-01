@@ -113,7 +113,9 @@
     },
     "recommends_metformin": {
       "type": "boolean",
-      "keywords": ["metformin", "glucophage"]
+      "keywords": ["metformin", "glucophage"],
+      "negation_words": ["contraindicated", "not recommend", "avoid", "do not", "should not", "cannot"],
+      "check_negation": true
     },
     "nephro_referral": {
       "type": "boolean",
