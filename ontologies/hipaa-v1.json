@@ -854,7 +854,8 @@
     },
     "has_specific_date": {
       "type": "boolean",
-      "keywords": ["2025-11-20", "2025-11-30", "november 20", "november 30", "-11-", "-12-", "-01-"]
+      "keywords": ["dob:", "date of birth", "admission date", "discharge date", "admitted:", "discharged:", "born:", "service date", "visit date", "procedure date"],
+      "negation_words": ["report generated", "generated:", "timestamp:", "created:"]
     },
     "is_deidentified": {
       "type": "boolean",
