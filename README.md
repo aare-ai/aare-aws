@@ -141,11 +141,14 @@ Constraints use structured JSON formulas that compile directly to Z3 expressions
 | Or | `{"or": [...]}` | `{"or": [{"==": ["approved", true]}, {">=": ["score", 700]}]}` |
 | Not | `{"not": {...}}` | `{"not": {"==": ["has_phi", true]}}` |
 | Implies | `{"implies": [A, B]}` | `{"implies": [{"==": ["is_denial", true]}, {"==": ["has_reason", true]}]}` |
+| If-Then-Else | `{"ite": [cond, then, else]}` | `{"ite": [{">": ["score", 700]}, "approved", "denied"]}` |
 | Equals | `{"==": [a, b]}` | `{"==": ["status", true]}` |
 | Less/Greater | `{"<=": [a, b]}` | `{"<=": ["dti", 43]}` |
+| Min/Max | `{"min": [a, b]}` | `{"<=": ["fee", {"min": [500, {"*": ["loan", 0.03]}]}]}` |
+| Arithmetic | `{"+": [a, b]}` | `{"<=": [{"+": ["fee", "points"]}, 1000]}` |
 | Variable Ref | `{"var": "name"}` | `{"<=": ["amount", {"var": "limit"}]}` |
 
-### Included Ontologies
+### Example Ontologies
 
 | Ontology | Domain | Constraints | Description |
 |----------|--------|-------------|-------------|
@@ -202,6 +205,7 @@ Verify LLM output against an ontology.
 {
   "verified": true,
   "violations": [],
+  "warnings": ["Variables defaulted (not found in input): ['variable_name']"],
   "parsed_data": {},
   "ontology": {
     "name": "string",
@@ -218,6 +222,8 @@ Verify LLM output against an ontology.
   "timestamp": "2024-01-15T10:30:00Z"
 }
 ```
+
+**Note:** The `warnings` field appears when variables couldn't be extracted from the LLM output and were defaulted. This helps auditors understand verification scope.
 
 ## Writing Custom Ontologies
 

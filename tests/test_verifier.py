@@ -134,6 +134,24 @@ class TestSMTVerifier:
         assert "verified" in result
         assert "violations" in result
 
+    def test_missing_variables_warning(self):
+        """Test that missing variables produce warnings for auditors"""
+        data = {
+            "dti": 40
+            # Missing: compensating_factors, has_guarantee, has_approval
+        }
+
+        result = self.verifier.verify(data, self.mortgage_ontology)
+
+        # Should include warnings about missing variables
+        assert "warnings" in result
+        assert len(result["warnings"]) > 0
+        # Check that warnings mention the missing variables
+        warning_text = result["warnings"][0]
+        assert "compensating_factors" in warning_text
+        assert "has_guarantee" in warning_text
+        assert "has_approval" in warning_text
+
     def test_execution_time_included(self):
         """Test that execution time is included in result"""
         data = {

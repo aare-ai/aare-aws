@@ -295,3 +295,112 @@ class TestFormulaCompiler:
         solver.add(z3_vars["score"] == 600)
         solver.add(Not(result))
         assert solver.check() == sat
+
+    def test_multiple_operators_raises_error(self):
+        """Test that multiple operators in one dict raises an error"""
+        formula = {"and": [{"==": ["x", True]}], "or": [{"==": ["y", True]}]}
+        z3_vars = {"x": Bool("x"), "y": Bool("y")}
+
+        with pytest.raises(ValueError, match="multiple operators"):
+            self.compiler.compile(formula, z3_vars)
+
+    def test_ite_operator(self):
+        """Test if-then-else (ite) operator"""
+        # if x > 10 then 100 else 0
+        formula = {
+            "ite": [
+                {">": ["x", 10]},
+                100,
+                0
+            ]
+        }
+        z3_vars = {"x": Int("x")}
+
+        result = self.compiler.compile(formula, z3_vars)
+
+        # x = 15 -> result should be 100
+        solver = Solver()
+        solver.add(z3_vars["x"] == 15)
+        solver.add(result != 100)
+        assert solver.check() == unsat
+
+        # x = 5 -> result should be 0
+        solver = Solver()
+        solver.add(z3_vars["x"] == 5)
+        solver.add(result != 0)
+        assert solver.check() == unsat
+
+    def test_min_operator(self):
+        """Test min operator: fee capped at lesser of $500 or 3% of loan"""
+        # min(500, loan * 0.03)
+        formula = {
+            "min": [
+                500,
+                {"*": ["loan", 0.03]}
+            ]
+        }
+        z3_vars = {"loan": Real("loan")}
+
+        result = self.compiler.compile(formula, z3_vars)
+
+        # loan = 10000 -> 3% = 300, min(500, 300) = 300
+        solver = Solver()
+        solver.add(z3_vars["loan"] == 10000)
+        solver.add(result != 300)
+        assert solver.check() == unsat
+
+        # loan = 20000 -> 3% = 600, min(500, 600) = 500
+        solver = Solver()
+        solver.add(z3_vars["loan"] == 20000)
+        solver.add(result != 500)
+        assert solver.check() == unsat
+
+    def test_max_operator(self):
+        """Test max operator"""
+        formula = {"max": ["a", "b"]}
+        z3_vars = {"a": Int("a"), "b": Int("b")}
+
+        result = self.compiler.compile(formula, z3_vars)
+
+        # a=10, b=5 -> max = 10
+        solver = Solver()
+        solver.add(z3_vars["a"] == 10)
+        solver.add(z3_vars["b"] == 5)
+        solver.add(result != 10)
+        assert solver.check() == unsat
+
+        # a=3, b=7 -> max = 7
+        solver = Solver()
+        solver.add(z3_vars["a"] == 3)
+        solver.add(z3_vars["b"] == 7)
+        solver.add(result != 7)
+        assert solver.check() == unsat
+
+    def test_fee_cap_constraint(self):
+        """Test realistic constraint: fee <= min(500, loan * 0.03)"""
+        formula = {
+            "<=": [
+                "fee",
+                {"min": [500, {"*": ["loan", 0.03]}]}
+            ]
+        }
+        z3_vars = {
+            "fee": Real("fee"),
+            "loan": Real("loan")
+        }
+
+        result = self.compiler.compile(formula, z3_vars)
+
+        # loan=10000, fee=250 -> 250 <= min(500, 300) = 250 <= 300 ✓
+        solver = Solver()
+        solver.add(z3_vars["loan"] == 10000)
+        solver.add(z3_vars["fee"] == 250)
+        solver.add(Not(result))
+        assert solver.check() == unsat
+
+        # loan=10000, fee=350 -> 350 <= min(500, 300) = 350 <= 300 ✗
+        solver = Solver()
+        solver.add(z3_vars["loan"] == 10000)
+        solver.add(z3_vars["fee"] == 350)
+        solver.add(Not(result))
+        assert solver.check() == sat
