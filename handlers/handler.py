@@ -5,9 +5,7 @@ Version: 2.0.1
 import json
 import uuid
 from datetime import datetime
-from handlers.ontology_loader import OntologyLoader
-from handlers.llm_parser import LLMParser
-from handlers.smt_verifier import SMTVerifier
+from aare_core import OntologyLoader, LLMParser, SMTVerifier
 
 llm_parser = LLMParser()
 smt_verifier = SMTVerifier()
