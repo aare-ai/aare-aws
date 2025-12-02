@@ -7,6 +7,7 @@ provider:
   stage: ${opt:stage, 'prod'}  # Changed default to 'prod'
   environment:
     ONTOLOGY_BUCKET: ${self:custom.ontologyBucket}
+    VERIFICATION_TABLE: ${self:custom.verificationTable}
     STAGE: ${self:provider.stage}
   apiGateway:
     apiKeys:
@@ -29,12 +30,20 @@ provider:
           Resource:
             - arn:aws:s3:::${self:custom.ontologyBucket}
             - arn:aws:s3:::${self:custom.ontologyBucket}/*
+        - Effect: Allow
+          Action:
+            - dynamodb:PutItem
+            - dynamodb:GetItem
+            - dynamodb:Query
+          Resource:
+            - !GetAtt VerificationTable.Arn
 
 plugins:
   - serverless-python-requirements
 
 custom:
   ontologyBucket: aare-ai-ontologies-${self:provider.stage}
+  verificationTable: aare-ai-verifications-${self:provider.stage}
   pythonRequirements:
     dockerizePip: non-linux
     slim: true
@@ -79,6 +88,33 @@ functions:
 
 resources:
   Resources:
+    VerificationTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:custom.verificationTable}
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: verification_id
+            AttributeType: S
+          - AttributeName: ontology_name
+            AttributeType: S
+          - AttributeName: timestamp
+            AttributeType: S
+        KeySchema:
+          - AttributeName: verification_id
+            KeyType: HASH
+        GlobalSecondaryIndexes:
+          - IndexName: ontology-timestamp-index
+            KeySchema:
+              - AttributeName: ontology_name
+                KeyType: HASH
+              - AttributeName: timestamp
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+        TimeToLiveSpecification:
+          AttributeName: ttl
+          Enabled: true
     GatewayResponseDefault4XX:
       Type: AWS::ApiGateway::GatewayResponse
       Properties:

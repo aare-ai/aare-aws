@@ -1,14 +1,21 @@
 """
 aare.ai - Main verification handler
-Version: 2.0.1
+Version: 2.1.0
 """
 import json
+import os
 import uuid
-from datetime import datetime
+import hashlib
+from datetime import datetime, timedelta
+import boto3
 from aare_core import OntologyLoader, LLMParser, SMTVerifier
 
 llm_parser = LLMParser()
 smt_verifier = SMTVerifier()
+
+# Initialize DynamoDB client
+dynamodb = boto3.resource('dynamodb')
+VERIFICATION_TABLE = os.environ.get('VERIFICATION_TABLE', 'aare-ai-verifications-prod')
 
 def handler(event, context):
     """AWS Lambda handler for aare.ai verification"""
@@ -45,7 +52,20 @@ def handler(event, context):
         
         # Verify constraints using Z3
         verification_result = smt_verifier.verify(extracted_data, ontology)
-        
+
+        # Generate verification ID and timestamp
+        verification_id = str(uuid.uuid4())
+        timestamp = datetime.utcnow().isoformat()
+
+        # Store verification record in DynamoDB
+        certificate_hash = _store_verification(
+            verification_id,
+            ontology['name'],
+            llm_output,
+            verification_result,
+            verification_result['execution_time_ms']
+        )
+
         # Build response
         return {
             'statusCode': 200,
@@ -60,10 +80,11 @@ def handler(event, context):
                     'constraints_checked': len(ontology['constraints'])
                 },
                 'proof': verification_result['proof'],
+                'certificate_hash': certificate_hash,
                 'solver': 'Constraint Logic',
-                'verification_id': str(uuid.uuid4()),
+                'verification_id': verification_id,
                 'execution_time_ms': verification_result['execution_time_ms'],
-                'timestamp': datetime.utcnow().isoformat()
+                'timestamp': timestamp
             })
         }
         
@@ -84,3 +105,43 @@ def _cors_headers():
         'Access-Control-Allow-Headers': 'Content-Type,x-api-key',
         'Access-Control-Allow-Methods': 'OPTIONS,POST'
     }
+
+
+def _store_verification(verification_id, ontology_name, llm_output, result, execution_time_ms):
+    """Store verification record in DynamoDB with proof certificate hash"""
+    try:
+        table = dynamodb.Table(VERIFICATION_TABLE)
+        timestamp = datetime.utcnow().isoformat()
+
+        # Create proof certificate hash for integrity verification
+        certificate_data = json.dumps({
+            'verification_id': verification_id,
+            'ontology': ontology_name,
+            'verified': result['verified'],
+            'violations': result['violations'],
+            'timestamp': timestamp
+        }, sort_keys=True)
+        certificate_hash = hashlib.sha256(certificate_data.encode()).hexdigest()
+
+        # TTL: 90 days from now
+        ttl = int((datetime.utcnow() + timedelta(days=90)).timestamp())
+
+        item = {
+            'verification_id': verification_id,
+            'ontology_name': ontology_name,
+            'timestamp': timestamp,
+            'verified': result['verified'],
+            'violation_count': len(result['violations']),
+            'violations': result['violations'] if result['violations'] else [],
+            'input_hash': hashlib.sha256(llm_output.encode()).hexdigest(),
+            'certificate_hash': certificate_hash,
+            'execution_time_ms': execution_time_ms,
+            'ttl': ttl
+        }
+
+        table.put_item(Item=item)
+        return certificate_hash
+    except Exception as e:
+        # Log but don't fail the verification if storage fails
+        print(f"DynamoDB storage error: {e}")
+        return None

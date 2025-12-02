@@ -256,24 +256,24 @@ serverless deploy --stage dev
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                              AWS Cloud                                       │
 │                                                                              │
-│  ┌──────────────┐     ┌──────────────────┐     ┌───────────────────────┐   │
-│  │              │     │                  │     │                       │   │
-│  │ API Gateway  │────▶│  Lambda          │────▶│  S3                   │   │
-│  │              │     │  (aare-ai-prod)  │     │  (ontologies bucket)  │   │
-│  │ - API Key    │     │                  │     │                       │   │
-│  │ - Rate Limit │     │  ┌────────────┐  │     │  - hipaa-v1.json      │   │
-│  │ - CORS       │     │  │ aare-core  │  │     │  - mortgage-v1.json   │   │
-│  │              │     │  │            │  │     │  - custom ontologies  │   │
-│  └──────────────┘     │  │ ┌────────┐ │  │     │                       │   │
-│         │             │  │ │   Z3   │ │  │     └───────────────────────┘   │
-│         │             │  │ │ Solver │ │  │                                  │
-│         ▼             │  │ └────────┘ │  │     ┌───────────────────────┐   │
-│  ┌──────────────┐     │  └────────────┘  │     │                       │   │
-│  │   CloudWatch │◀────│                  │────▶│  DynamoDB (optional)  │   │
-│  │   Logs       │     └──────────────────┘     │  - verification logs  │   │
-│  └──────────────┘                              │  - proof certificates │   │
-│                                                │  - audit trail        │   │
-│                                                └───────────────────────┘   │
+│  ┌──────────────┐     ┌──────────────────┐     ┌───────────────────────┐  │
+│  │              │     │                  │     │                       │  │
+│  │ API Gateway  │────▶│  Lambda          │◀───▶│  S3                   │  │
+│  │              │     │  (aare-ai-prod)  │     │  (ontologies bucket)  │  │
+│  │ - API Key    │     │                  │     │                       │  │
+│  │ - Rate Limit │     │  ┌────────────┐  │     │  - hipaa-v1.json      │  │
+│  │ - CORS       │     │  │ aare-core  │  │     │  - mortgage-v1.json   │  │
+│  │              │     │  │            │  │     │  - custom ontologies  │  │
+│  └──────────────┘     │  │ ┌────────┐ │  │     │                       │  │
+│         │             │  │ │   Z3   │ │  │     └───────────────────────┘  │
+│         │             │  │ │ Solver │ │  │                                │
+│         ▼             │  │ └────────┘ │  │     ┌───────────────────────┐  │
+│  ┌──────────────┐     │  └────────────┘  │     │                       │  │
+│  │   CloudWatch │◀────│                  │────▶│  DynamoDB             │  │
+│  │   Logs       │     └──────────────────┘     │  - verification logs  │  │
+│  └──────────────┘                              │  - proof certificates │  │
+│                                                │  - audit trail        │  │
+│                                                └───────────────────────┘  │
 └─────────────────────────────────────────────────────────────────────────────┘
 
                               │
@@ -282,7 +282,7 @@ serverless deploy --stage dev
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                           Your Application                                   │
 │                                                                              │
-│   LLM Output ──▶ aare.ai API ──▶ Verified Output + Proof Certificate        │
+│   LLM Output ──▶ aare.ai /verify ──▶ Verified Output + Proof Certificate    │
 │                                                                              │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -296,7 +296,7 @@ serverless deploy --stage dev
 | **Verification** | aare-core + Z3 | SMT solver for formal verification |
 | **Ontologies** | Amazon S3 | Stores compliance rule definitions |
 | **Logs** | CloudWatch | Request/response logging, metrics |
-| **Audit Trail** | DynamoDB (optional) | Persistent storage for proof certificates |
+| **Audit Trail** | DynamoDB | Persistent storage for proof certificates |
 
 ### Data Flow
 
@@ -304,7 +304,7 @@ serverless deploy --stage dev
 2. **Lambda** → Loads ontology from S3 (or bundled), parses LLM output
 3. **Z3 Solver** → Verifies constraints, generates proof certificate
 4. **Response** → Returns verification result with proof
-5. **Audit** → (Optional) Stores verification record in DynamoDB
+5. **Audit** → Stores verification record in DynamoDB
 
 ### Current Deployment
 
