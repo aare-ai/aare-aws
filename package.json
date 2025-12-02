@@ -1,0 +1,13 @@
+{
+  "name": "aare-aws",
+  "version": "1.0.0",
+  "description": "aare.ai AWS Lambda deployment",
+  "scripts": {
+    "deploy": "serverless deploy --stage prod",
+    "deploy:dev": "serverless deploy --stage dev"
+  },
+  "devDependencies": {
+    "serverless": "^3.38.0",
+    "serverless-python-requirements": "^6.0.1"
+  }
+}

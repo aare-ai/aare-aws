@@ -30,11 +30,15 @@ provider:
             - arn:aws:s3:::${self:custom.ontologyBucket}
             - arn:aws:s3:::${self:custom.ontologyBucket}/*
 
+plugins:
+  - serverless-python-requirements
+
 custom:
   ontologyBucket: aare-ai-ontologies-${self:provider.stage}
   pythonRequirements:
-    dockerizePip: true
-    layer: true
+    dockerizePip: non-linux
+    slim: true
+    strip: false
     fileName: requirements.txt
 
 package:
@@ -44,8 +48,8 @@ package:
     - '!tests/**'
     - '!.git/**'
     - '!ontologies/**'
+    - '!package*.json'
     - handlers/**
-    - requirements.txt
 
 functions:
   verify:
@@ -53,8 +57,6 @@ functions:
     description: aare.ai Z3 SMT verification engine - Production
     timeout: 30
     memorySize: 2048
-    layers:
-      - Ref: PythonRequirementsLambdaLayer
     events:
       - http:
           path: /verify

@@ -252,11 +252,67 @@ serverless deploy --stage dev
 
 ## Architecture
 
-- **Runtime**: Python 3.11 on AWS Lambda
-- **Solver**: Z3 SMT Solver
-- **Storage**: S3 for ontologies
-- **API**: API Gateway with API key authentication
-- **Framework**: Serverless Framework
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              AWS Cloud                                       │
+│                                                                              │
+│  ┌──────────────┐     ┌──────────────────┐     ┌───────────────────────┐   │
+│  │              │     │                  │     │                       │   │
+│  │ API Gateway  │────▶│  Lambda          │────▶│  S3                   │   │
+│  │              │     │  (aare-ai-prod)  │     │  (ontologies bucket)  │   │
+│  │ - API Key    │     │                  │     │                       │   │
+│  │ - Rate Limit │     │  ┌────────────┐  │     │  - hipaa-v1.json      │   │
+│  │ - CORS       │     │  │ aare-core  │  │     │  - mortgage-v1.json   │   │
+│  │              │     │  │            │  │     │  - custom ontologies  │   │
+│  └──────────────┘     │  │ ┌────────┐ │  │     │                       │   │
+│         │             │  │ │   Z3   │ │  │     └───────────────────────┘   │
+│         │             │  │ │ Solver │ │  │                                  │
+│         ▼             │  │ └────────┘ │  │     ┌───────────────────────┐   │
+│  ┌──────────────┐     │  └────────────┘  │     │                       │   │
+│  │   CloudWatch │◀────│                  │────▶│  DynamoDB (optional)  │   │
+│  │   Logs       │     └──────────────────┘     │  - verification logs  │   │
+│  └──────────────┘                              │  - proof certificates │   │
+│                                                │  - audit trail        │   │
+│                                                └───────────────────────┘   │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+                              │
+                              │ HTTPS + API Key
+                              ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           Your Application                                   │
+│                                                                              │
+│   LLM Output ──▶ aare.ai API ──▶ Verified Output + Proof Certificate        │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Components
+
+| Component | Service | Purpose |
+|-----------|---------|---------|
+| **API Gateway** | Amazon API Gateway | REST API with API key auth, rate limiting, CORS |
+| **Compute** | AWS Lambda | Runs verification engine (Python 3.11, 2GB RAM) |
+| **Verification** | aare-core + Z3 | SMT solver for formal verification |
+| **Ontologies** | Amazon S3 | Stores compliance rule definitions |
+| **Logs** | CloudWatch | Request/response logging, metrics |
+| **Audit Trail** | DynamoDB (optional) | Persistent storage for proof certificates |
+
+### Data Flow
+
+1. **Request** → API Gateway validates API key and rate limits
+2. **Lambda** → Loads ontology from S3 (or bundled), parses LLM output
+3. **Z3 Solver** → Verifies constraints, generates proof certificate
+4. **Response** → Returns verification result with proof
+5. **Audit** → (Optional) Stores verification record in DynamoDB
+
+### Current Deployment
+
+- **Region**: us-west-2
+- **Endpoint**: `https://api.aare.ai/verify` (via custom domain)
+- **Memory**: 2048 MB
+- **Timeout**: 30 seconds
+- **Concurrency**: Default Lambda limits
 
 ## Requirements
 
