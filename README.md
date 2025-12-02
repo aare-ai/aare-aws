@@ -168,11 +168,7 @@ Constraints use structured JSON formulas that compile directly to Z3 expressions
 ```
 aare-aws/
 ├── handlers/
-│   ├── handler.py           # Lambda entry point
-│   ├── llm_parser.py        # Extract data from LLM output
-│   ├── formula_compiler.py  # Compile JSON formulas to Z3 expressions
-│   ├── smt_verifier.py      # Z3 constraint verification
-│   └── ontology_loader.py   # Load ontologies from S3
+│   └── handler.py           # Lambda entry point
 ├── ontologies/              # Compliance rule definitions (100 constraints)
 │   ├── hipaa-v1.json        # 52 HIPAA constraints
 │   ├── mortgage-compliance-v1.json
@@ -185,6 +181,9 @@ aare-aws/
 ├── serverless.yml           # AWS deployment config
 └── requirements.txt
 ```
+
+> **Note:** The core verification engine (LLMParser, SMTVerifier, FormulaCompiler, OntologyLoader)
+> is provided by the [aare-core](https://github.com/aare-ai/aare-core) package.
 
 ## API Reference
 
