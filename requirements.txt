@@ -1,5 +1,5 @@
 # Core verification engine (shared across all cloud deployments)
-aare-core>=0.2.4
+aare-core>=0.2.5
 
 # AWS dependencies
 boto3
