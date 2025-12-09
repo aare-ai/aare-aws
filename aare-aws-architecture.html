@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>aare.ai AWS - Technical Documentation</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            line-height: 1.6;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+            color: #333;
+        }
+        h1, h2, h3 { color: #222; margin-top: 1.5em; }
+        h1 { border-bottom: 2px solid #333; padding-bottom: 10px; }
+        h2 { border-bottom: 1px solid #ccc; padding-bottom: 5px; }
+        pre {
+            background: #f5f5f5;
+            padding: 15px;
+            overflow-x: auto;
+            border: 1px solid #ddd;
+            font-size: 13px;
+        }
+        code {
+            background: #f5f5f5;
+            padding: 2px 5px;
+            font-size: 14px;
+        }
+        pre code { background: none; padding: 0; }
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 1em 0;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px 12px;
+            text-align: left;
+        }
+        th { background: #f5f5f5; }
+        a { color: #0066cc; }
+        hr { border: none; border-top: 1px solid #ccc; margin: 2em 0; }
+        ul, ol { padding-left: 25px; }
+        li { margin: 5px 0; }
+        .github-links { margin-bottom: 1.5em; }
+        nav {
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+        nav a {
+            color: #0066cc;
+            text-decoration: none;
+        }
+        nav a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <nav>
+        <a href="../projects.html">Projects</a> |
+        <a href="aare-aws-architecture.html">aare.ai</a> |
+        <a href="../americanseniorshield/americanseniorshield-backend/american-senior-shield-architecture.html">American Senior Shield</a>
+    </nav>
+
+    <h1>aare.ai AWS - Technical Documentation</h1>
+
+    <p class="github-links"><strong>GitHub</strong>: <a href="https://www.github.com/aare-ai">github.com/aare-ai</a> | <a href="https://www.github.com/aare-ai/aare-aws">github.com/aare-ai/aare-aws</a></p>
+
+    <h2>Overview</h2>
+
+    <p><strong>aare.ai</strong> is a formal verification platform that provides mathematical proof of LLM (Large Language Model) compliance. It uses the Z3 theorem prover to mathematically verify that every LLM response satisfies compliance constraints before reaching customers.</p>
+
+    <h3>Key Features</h3>
+
+    <ul>
+        <li><strong>Mathematical Verification</strong>: Z3 SMT solver provides formal proofs (not regex or pattern matching)</li>
+        <li><strong>Multi-Domain Compliance</strong>: 10+ ontologies covering HIPAA, lending, trading, data privacy, etc.</li>
+        <li><strong>Proof Certificates</strong>: SHA256 hashed certificates for audit trails</li>
+        <li><strong>100+ Constraints</strong>: Comprehensive rule coverage across regulatory domains</li>
+        <li><strong>Serverless Architecture</strong>: AWS Lambda with API Gateway and DynamoDB</li>
+    </ul>
+
+    <hr>
+
+    <h2>Architecture Diagram</h2>
+
+<pre>
++------------------------------------------------------------------------+
+|                              aare.ai                                    |
+|                   LLM Compliance Verification Platform                  |
++------------------------------------------------------------------------+
+
+                            +---------------------+
+                            |      CLIENTS        |
+                            | (LLM Applications)  |
+                            +----------+----------+
+                                       |
+                                       | POST /verify
+                                       | x-api-key header
+                                       v
++------------------------------------------------------------------------+
+| EXTERNAL SERVICES                                                       |
+|                                                                         |
+|  +------------------------------------------------------------------+  |
+|  |                      API Gateway (REST)                          |  |
+|  |                      api.aare.ai/verify                          |  |
+|  |                                                                  |  |
+|  |  - API Key Authentication (aare-ai-key-{stage})                  |  |
+|  |  - Rate Limiting: 200 req/s, 500 burst, 100k/day                 |  |
+|  |  - CORS: aare.ai, localhost:3000/8000                            |  |
+|  +------------------------------+-----------------------------------+  |
+|                                 |                                      |
++------------------------------------------------------------------------+
+                                  |
+                                  v
++------------------------------------------------------------------------+
+| AWS                                                                     |
+|                                                                         |
+|  +------------------------------------------------------------------+  |
+|  |                     Lambda Function                              |  |
+|  |                     (Python 3.11, 2GB, 30s)                      |  |
+|  |                                                                  |  |
+|  |  +------------------------------------------------------------+  |  |
+|  |  |                   aare-core Engine                         |  |  |
+|  |  |                                                            |  |  |
+|  |  |  1. Parse Request (llm_output, ontology name)              |  |  |
+|  |  |  2. Load Ontology from S3                                  |  |  |
+|  |  |  3. Extract Variables (LLMParser - regex/keywords)         |  |  |
+|  |  |  4. Compile Constraints (FormulaCompiler -> Z3)            |  |  |
+|  |  |  5. Run Verification (SMTVerifier - Z3 Solver)             |  |  |
+|  |  |  6. Generate Proof Certificate (SHA256)                    |  |  |
+|  |  |  7. Store Audit Record in DynamoDB                         |  |  |
+|  |  |  8. Return Verification Result                             |  |  |
+|  |  +------------------------------------------------------------+  |  |
+|  |                                                                  |  |
+|  |  +------------------+                                            |  |
+|  |  |   Z3 SMT Solver  |  &lt;-- Mathematical constraint verification  |  |
+|  |  |   (v4.12.1)      |      Formal proofs, not pattern matching   |  |
+|  |  +------------------+                                            |  |
+|  +------------------------------------------------------------------+  |
+|                                                                         |
+|         +---------------+---------------+---------------+               |
+|         |               |               |               |               |
+|         v               v               v               v               |
+|  +-------------+  +-------------+  +-------------+  +-------------+     |
+|  |     S3      |  |  DynamoDB   |  | CloudWatch  |  |     ECR     |     |
+|  |             |  |             |  |             |  |             |     |
+|  | Ontologies  |  | Audit Trail |  |   Logs &amp;    |  |   Docker    |     |
+|  | Bucket      |  |   Table     |  |  Metrics    |  |   Images    |     |
+|  |             |  |             |  |             |  |             |     |
+|  | -mortgage   |  | -verify_id  |  | -Requests   |  | -Lambda     |     |
+|  | -hipaa      |  | -timestamp  |  | -Latency    |  |  with Z3    |     |
+|  | -trading    |  | -violations |  | -Errors     |  |             |     |
+|  | -medical    |  | -cert_hash  |  |             |  |             |     |
+|  | -privacy    |  | -TTL 90 day |  |             |  |             |     |
+|  | -financial  |  |             |  |             |  |             |     |
+|  | +7 more...  |  | GSI: ontol- |  |             |  |             |     |
+|  |             |  | ogy+time    |  |             |  |             |     |
+|  +-------------+  +-------------+  +-------------+  +-------------+     |
+|                                                                         |
++------------------------------------------------------------------------+
+
+                                  |
+                                  v
+                      +---------------------+
+                      |      RESPONSE       |
+                      +---------------------+
+                      | {                   |
+                      |   verified: bool,   |
+                      |   violations: [...],|
+                      |   parsed_data: {},  |
+                      |   proof: {          |
+                      |     method: "Z3",   |
+                      |     results: [...]  |
+                      |   },                |
+                      |   certificate_hash, |
+                      |   verification_id   |
+                      | }                   |
+                      +---------------------+
+</pre>
+
+    <hr>
+
+    <h2>Technology Stack</h2>
+
+    <h3>Backend</h3>
+
+    <table>
+        <tr><th>Layer</th><th>Technology</th><th>Version</th></tr>
+        <tr><td><strong>Runtime</strong></td><td>Python</td><td>3.11</td></tr>
+        <tr><td><strong>Framework</strong></td><td>Serverless Framework</td><td>3.x</td></tr>
+        <tr><td><strong>Cloud Provider</strong></td><td>AWS</td><td>us-west-2</td></tr>
+        <tr><td><strong>Verification Engine</strong></td><td>Z3 SMT Solver</td><td>4.12.1</td></tr>
+        <tr><td><strong>Core Library</strong></td><td>aare-core</td><td>&gt;=0.2.5</td></tr>
+    </table>
+
+    <h3>Key Dependencies</h3>
+
+    <table>
+        <tr><th>Package</th><th>Purpose</th></tr>
+        <tr><td><strong>aare-core</strong></td><td>Verification engine (OntologyLoader, LLMParser, SMTVerifier)</td></tr>
+        <tr><td><strong>z3-solver</strong></td><td>Satisfiability Modulo Theories solver</td></tr>
+        <tr><td><strong>boto3</strong></td><td>AWS SDK for Python</td></tr>
+        <tr><td><strong>aws-lambda-powertools</strong></td><td>Lambda utilities and logging</td></tr>
+        <tr><td><strong>pydantic</strong></td><td>Data validation</td></tr>
+        <tr><td><strong>rdflib / owlready2</strong></td><td>OWL/RDF ontology processing</td></tr>
+    </table>
+
+    <hr>
+
+    <h2>AWS Services</h2>
+
+    <table>
+        <tr><th>Service</th><th>Purpose</th><th>Configuration</th></tr>
+        <tr><td><strong>Lambda</strong></td><td>Verification engine</td><td>Python 3.11, 2GB RAM, 30s timeout</td></tr>
+        <tr><td><strong>API Gateway</strong></td><td>REST API endpoint</td><td>POST /verify, API key auth, rate limiting</td></tr>
+        <tr><td><strong>DynamoDB</strong></td><td>Audit trail storage</td><td>aare-ai-verifications-{stage}, 90-day TTL, GSI</td></tr>
+        <tr><td><strong>S3</strong></td><td>Ontology storage</td><td>aare-ai-ontologies-{stage}, 10+ JSON files</td></tr>
+        <tr><td><strong>CloudWatch</strong></td><td>Logging &amp; monitoring</td><td>Request logs, latency metrics, errors</td></tr>
+        <tr><td><strong>ECR</strong></td><td>Container registry</td><td>Docker images with Z3 precompiled</td></tr>
+        <tr><td><strong>IAM</strong></td><td>Access control</td><td>Lambda role with S3 read, DynamoDB write</td></tr>
+    </table>
+
+    <hr>
+
+    <h2>API Endpoint</h2>
+
+    <h3>POST /verify</h3>
+
+    <p><strong>Authentication</strong>: API Key (x-api-key header)</p>
+
+    <p><strong>Request</strong>:</p>
+<pre>{
+  "llm_output": "The recommended loan has a DTI of 38% and...",
+  "ontology": "mortgage-compliance-v1"
+}</pre>
+
+    <p><strong>Response</strong>:</p>
+<pre>{
+  "verified": true,
+  "violations": [],
+  "parsed_data": {
+    "dti_ratio": 0.38,
+    "has_guarantee_language": false
+  },
+  "ontology": {
+    "name": "mortgage-compliance-v1",
+    "version": "1.0.0",
+    "constraints_checked": 8
+  },
+  "proof": {
+    "method": "Z3 SMT Solver",
+    "version": "4.12.1",
+    "results": [...]
+  },
+  "certificate_hash": "SHA256:abc123...",
+  "verification_id": "uuid-v4",
+  "execution_time_ms": 145,
+  "timestamp": "2024-01-15T10:30:00Z"
+}</pre>
+
+    <p><strong>Rate Limits</strong>:</p>
+    <ul>
+        <li>200 requests/second</li>
+        <li>500 burst capacity</li>
+        <li>100,000 requests/day quota</li>
+    </ul>
+
+    <hr>
+
+    <h2>Ontologies (Compliance Domains)</h2>
+
+    <table>
+        <tr><th>Ontology</th><th>Domain</th><th>Constraints</th><th>Key Rules</th></tr>
+        <tr><td><strong>mortgage-compliance-v1</strong></td><td>Lending</td><td>8</td><td>ATR/QM (DTI &le;43%), HOEPA, UDAAP, Escrow</td></tr>
+        <tr><td><strong>hipaa-v1</strong></td><td>Healthcare</td><td>52</td><td>PHI detection, de-identification, access control</td></tr>
+        <tr><td><strong>medical-safety-v1</strong></td><td>Healthcare</td><td>5</td><td>Drug dosing, interactions, kidney function</td></tr>
+        <tr><td><strong>financial-compliance-v1</strong></td><td>Finance</td><td>6</td><td>No specific securities, disclaimers required</td></tr>
+        <tr><td><strong>data-privacy-v1</strong></td><td>Security</td><td>5</td><td>No PII, no credentials, no internal URLs</td></tr>
+        <tr><td><strong>fair-lending-v1</strong></td><td>Lending</td><td>5</td><td>Credit limits, DTI caps, down payment</td></tr>
+        <tr><td><strong>customer-service-v1</strong></td><td>Support</td><td>5</td><td>Discount limits, delivery promises</td></tr>
+        <tr><td><strong>trading-compliance-v1</strong></td><td>Trading</td><td>5</td><td>Position sizing, sector exposure</td></tr>
+        <tr><td><strong>contract-compliance-v1</strong></td><td>Legal</td><td>Multiple</td><td>Usury limits, late fee caps</td></tr>
+        <tr><td><strong>content-policy-v1</strong></td><td>Content</td><td>Multiple</td><td>Medical advice, religious content</td></tr>
+    </table>
+
+    <hr>
+
+    <h2>Verification Flow</h2>
+
+<pre>
++-------------------+     +-------------------+     +-------------------+
+|   LLM Output      | --&gt; |   LLM Parser      | --&gt; |  Extracted Data   |
+|   (raw text)      |     |  (regex/keywords) |     |  (variables)      |
++-------------------+     +-------------------+     +-------------------+
+                                                            |
+                                                            v
++-------------------+     +-------------------+     +-------------------+
+|   Verification    | &lt;-- |  Formula Compiler | &lt;-- |   Ontology        |
+|   Result          |     |  (JSON -&gt; Z3)     |     |   (constraints)   |
++-------------------+     +-------------------+     +-------------------+
+        |
+        v
++-------------------+     +-------------------+
+|   Z3 SMT Solver   | --&gt; |  Proof/Violation  |
+|   (formal proof)  |     |  (with citations) |
++-------------------+     +-------------------+
+</pre>
+
+    <hr>
+
+    <h2>Database Schema</h2>
+
+    <h3>DynamoDB Table: <code>aare-ai-verifications-{stage}</code></h3>
+
+    <p><strong>Primary Key</strong>: <code>verification_id</code> (String)</p>
+
+    <p><strong>Attributes</strong>:</p>
+<pre>{
+  verification_id: "uuid-v4",           // Primary key
+  timestamp: "ISO8601",                 // Sort key in GSI
+  ontology_name: "string",              // GSI partition key
+  verified: boolean,
+  violation_count: number,
+  violations: [                         // Array of violations
+    {
+      constraint_id: "string",
+      category: "string",
+      description: "string",
+      error_message: "string",
+      citation: "string"
+    }
+  ],
+  input_hash: "SHA256",                 // Hash of llm_output
+  certificate_hash: "SHA256",           // Hash of full verification
+  execution_time_ms: number,
+  ttl: number                           // Auto-delete after 90 days
+}</pre>
+
+    <p><strong>Global Secondary Index</strong>: <code>ontology_name</code> + <code>timestamp</code></p>
+    <ul>
+        <li>Query verifications by ontology and time range</li>
+    </ul>
+
+    <hr>
+
+    <h2>Deployment</h2>
+
+    <h3>Using Serverless Framework</h3>
+
+<pre># Install dependencies
+npm install
+pip install -r requirements.txt
+
+# Deploy to dev
+serverless deploy --stage dev
+
+# Deploy to production
+serverless deploy --stage prod</pre>
+
+    <h3>Using Docker (ECR)</h3>
+
+<pre># Build Docker image with Z3
+./deploy.sh
+
+# This script:
+# 1. Builds Dockerfile.z3 with precompiled Z3
+# 2. Tags and pushes to ECR
+# 3. Updates Lambda function with new image
+# 4. Tests the API endpoint</pre>
+
+    <hr>
+
+    <h2>Security</h2>
+
+    <h3>API Security</h3>
+    <ul>
+        <li>API Key authentication required</li>
+        <li>Rate limiting prevents abuse</li>
+        <li>CORS restricted to aare.ai domains and localhost</li>
+    </ul>
+
+    <h3>Data Security</h3>
+    <ul>
+        <li>SHA256 hashing for verification certificates</li>
+        <li>Audit trail stored in DynamoDB</li>
+        <li>90-day automatic TTL on records</li>
+        <li>Input hashing for traceability</li>
+    </ul>
+
+    <h3>Verification Security</h3>
+    <ul>
+        <li>Mathematical proofs (not pattern matching)</li>
+        <li>Z3 SMT Solver for formal verification</li>
+        <li>Proof certificates included in responses</li>
+        <li>Citation references for audit compliance</li>
+    </ul>
+
+    <hr>
+
+    <h2>Environment Configuration</h2>
+
+<pre># AWS
+AWS_REGION=us-west-2
+AWS_PROFILE=default
+
+# Resources (auto-generated by stage)
+DYNAMODB_TABLE=aare-ai-verifications-{stage}
+S3_ONTOLOGY_BUCKET=aare-ai-ontologies-{stage}
+
+# Security
+API_KEY=your-api-key-here
+
+# Monitoring
+CLOUDWATCH_NAMESPACE=aare-ai
+LOG_LEVEL=INFO
+METRICS_ENABLED=true</pre>
+
+    <hr>
+
+    <h2>Monitoring</h2>
+
+    <h3>CloudWatch Metrics</h3>
+    <ul>
+        <li>Request count and latency</li>
+        <li>Verification success/failure rate</li>
+        <li>Violation counts by ontology</li>
+        <li>Lambda execution time and memory</li>
+    </ul>
+
+    <h3>Logging</h3>
+    <ul>
+        <li>All verification requests logged</li>
+        <li>Violations recorded with full context</li>
+        <li>Error stack traces for debugging</li>
+    </ul>
+
+    <hr>
+
+    <h2>Testing</h2>
+
+<pre># Run all tests
+pytest tests/
+
+# Test verification logic
+pytest tests/test_verifier.py
+
+# Test LLM output parsing
+pytest tests/test_parser.py
+
+# Test formula compilation
+pytest tests/test_formula_compiler.py</pre>
+
+    <h3>Test Coverage</h3>
+    <ul>
+        <li>All constraint types (AND, OR, NOT, IMPLIES)</li>
+        <li>Variable extraction (float, int, boolean)</li>
+        <li>Missing variable handling</li>
+        <li>Violation detection</li>
+        <li>Proof certificate generation</li>
+    </ul>
+
+    <hr>
+
+    <h2>Use Cases</h2>
+
+    <ol>
+        <li><strong>LLM Guardrails</strong>: Verify AI responses before reaching customers</li>
+        <li><strong>Compliance Validation</strong>: Mathematical proof of regulatory compliance</li>
+        <li><strong>Risk Mitigation</strong>: Block non-compliant outputs with citations</li>
+        <li><strong>Audit Support</strong>: Proof certificates for compliance auditors</li>
+        <li><strong>Multi-Domain</strong>: Finance, healthcare, lending, trading, legal</li>
+    </ol>
+
+</body>
+</html>
