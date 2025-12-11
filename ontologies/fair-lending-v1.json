@@ -56,18 +56,6 @@
       ],
       "error_message": "Down payment below 5% minimum",
       "citation": "Lending Policy"
-    },
-    {
-      "id": "EMPLOYMENT_VERIFICATION",
-      "category": "Income",
-      "description": "Employment must be verified",
-      "formula_readable": "employment_verified",
-      "formula": {"==": ["employment_verified", true]},
-      "variables": [
-        {"name": "employment_verified", "type": "bool"}
-      ],
-      "error_message": "Employment verification required",
-      "citation": "Underwriting Standards"
     }
   ],
   "extractors": {
@@ -90,10 +78,6 @@
     "has_down_payment": {
       "type": "boolean",
       "keywords": ["down payment", "down-payment", "downpayment"]
-    },
-    "employment_verified": {
-      "type": "boolean",
-      "keywords": ["employed", "software engineer", "income", "verified", "meets all criteria", "all parameters pass"]
     }
   }
 }
