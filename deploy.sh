@@ -1,67 +1,135 @@
-cat > Dockerfile.z3 << 'EOF'
-# Build stage - using full Python image with build tools
-FROM python:3.11-slim as builder
+#!/bin/bash
+# Deploy aare-ai Lambda function
+# Supports both ZIP and Container Image deployments
 
-# Install build dependencies for Z3
-RUN apt-get update && apt-get install -y \
-    gcc \
-    g++ \
-    cmake \
-    make \
-    && rm -rf /var/lib/apt/lists/*
+set -e
 
-# Install Z3 in the builder stage
-RUN pip install --no-cache-dir z3-solver
+FUNCTION_NAME="aare-ai-prod"
+REGION="us-west-2"
+ECR_REPO="596626989349.dkr.ecr.us-west-2.amazonaws.com/aare-ai"
 
-# Runtime stage - Lambda image
-FROM public.ecr.aws/lambda/python:3.11
+# Check current package type
+PACKAGE_TYPE=$(aws lambda get-function-configuration --function-name $FUNCTION_NAME --region $REGION --query 'PackageType' --output text 2>/dev/null || echo "Unknown")
 
-# Copy Z3 from builder to Lambda runtime
-COPY --from=builder /usr/local/lib/python3.11/site-packages/ /var/lang/lib/python3.11/site-packages/
+echo "Current Lambda package type: $PACKAGE_TYPE"
 
-# Install boto3 (already in Lambda but let's be explicit)
-RUN pip install boto3
+if [ "$PACKAGE_TYPE" == "Image" ]; then
+    echo "Deploying as Container Image..."
 
-# Copy handler files
-COPY handlers/ ${LAMBDA_TASK_ROOT}/handlers/
+    # Build the image
+    echo "Building Docker image..."
+    docker build -f Dockerfile.z3 -t aare-ai-z3 .
 
-# Test that Z3 imports correctly
-RUN python -c "from z3 import *; print('Z3 imported successfully')"
+    # Tag for ECR
+    docker tag aare-ai-z3:latest ${ECR_REPO}:prod-z3
 
-# Set the handler
-CMD ["handlers.handler.handler"]
-EOF
+    # Login to ECR
+    aws ecr get-login-password --region $REGION | docker login --username AWS --password-stdin ${ECR_REPO}
 
-# Build the image with Z3
-echo "Building Docker image with Z3..."
-docker build -f Dockerfile.z3 -t aare-ai-z3 .
+    # Push to ECR
+    echo "Pushing to ECR..."
+    docker push ${ECR_REPO}:prod-z3
 
-# Tag it for ECR
-docker tag aare-ai-z3:latest 596626989349.dkr.ecr.us-west-2.amazonaws.com/aare-ai:prod-z3
+    # Update Lambda
+    echo "Updating Lambda function..."
+    aws lambda update-function-code \
+        --function-name $FUNCTION_NAME \
+        --image-uri ${ECR_REPO}:prod-z3 \
+        --region $REGION > /dev/null
+else
+    echo "Deploying as ZIP package..."
 
-# Push to ECR
-echo "Pushing to ECR..."
-docker push 596626989349.dkr.ecr.us-west-2.amazonaws.com/aare-ai:prod-z3
+    # Clean up
+    rm -rf lambda_package lambda_package.zip
+    mkdir -p lambda_package
 
-# Update Lambda function
-echo "Updating Lambda function..."
-aws lambda update-function-code \
-    --function-name aare-ai-prod \
-    --image-uri 596626989349.dkr.ecr.us-west-2.amazonaws.com/aare-ai:prod-z3 \
-    --region us-west-2
+    # Use Docker to install packages for Amazon Linux 2 (Lambda runtime)
+    # Note: z3-solver has pre-built wheels for manylinux, which work on Lambda
+    echo "Installing dependencies in Lambda-compatible environment..."
+    docker run --rm --entrypoint "" \
+        -v "$(pwd)/lambda_package:/package" \
+        -v "$(pwd)/requirements.txt:/requirements.txt" \
+        --platform linux/amd64 \
+        python:3.11-slim \
+        /bin/bash -c "
+            pip install --upgrade pip --root-user-action=ignore -q
+            pip install --no-cache-dir --platform manylinux2014_x86_64 --only-binary=:all: z3-solver -t /package --root-user-action=ignore -q
+            pip install --no-cache-dir -r /requirements.txt -t /package --root-user-action=ignore -q
+            chmod -R 755 /package
+        "
+
+    # Copy handler files
+    cp -r handlers lambda_package/
+
+    # Copy ontologies
+    cp -r ontologies lambda_package/
+
+    # Create the ZIP
+    echo "Creating ZIP package..."
+    cd lambda_package
+    zip -rq9 ../lambda_package.zip .
+    cd ..
+
+    # Check size
+    ZIP_SIZE=$(stat -f%z lambda_package.zip 2>/dev/null || stat -c%s lambda_package.zip)
+    ZIP_SIZE_MB=$((ZIP_SIZE / 1024 / 1024))
+    echo "Package size: ${ZIP_SIZE_MB}MB"
+
+    if [ $ZIP_SIZE -gt 52428800 ]; then
+        echo "Package too large for direct upload (>50MB), using S3..."
+        S3_BUCKET="aare-ai-deployments-${REGION}"
+
+        # Create bucket if it doesn't exist
+        aws s3 mb s3://${S3_BUCKET} --region $REGION 2>/dev/null || true
+
+        # Upload to S3
+        aws s3 cp lambda_package.zip s3://${S3_BUCKET}/lambda_package.zip --quiet
+
+        # Update Lambda from S3
+        echo "Updating Lambda function..."
+        aws lambda update-function-code \
+            --function-name $FUNCTION_NAME \
+            --s3-bucket ${S3_BUCKET} \
+            --s3-key lambda_package.zip \
+            --region $REGION > /dev/null
+    else
+        # Direct upload
+        echo "Updating Lambda function..."
+        aws lambda update-function-code \
+            --function-name $FUNCTION_NAME \
+            --zip-file fileb://lambda_package.zip \
+            --region $REGION > /dev/null
+    fi
+fi
 
 # Wait for update to complete
 echo "Waiting for Lambda update to complete..."
 aws lambda wait function-updated \
-    --function-name aare-ai-prod \
-    --region us-west-2
+    --function-name $FUNCTION_NAME \
+    --region $REGION
 
-echo "✅ Deployment complete! Testing the API..."
+# Ensure handler and environment are configured correctly
+echo "Updating Lambda configuration..."
+aws lambda update-function-configuration \
+    --function-name $FUNCTION_NAME \
+    --handler handlers.handler.handler \
+    --environment "Variables={ONTOLOGY_DIR=/var/task/ontologies}" \
+    --region $REGION > /dev/null
+
+aws lambda wait function-updated \
+    --function-name $FUNCTION_NAME \
+    --region $REGION
+
+echo ""
+echo "✅ Deployment complete!"
+echo ""
 
 # Test the API
-curl -X POST https://lofeorzpeh.execute-api.us-west-2.amazonaws.com/prod/verify \
+echo "Testing the API..."
+curl -s -X POST https://lofeorzpeh.execute-api.us-west-2.amazonaws.com/prod/verify \
   -H "Content-Type: application/json" \
+  -H "x-api-key: gUKFSwx3Pv5B7exuS2IX86lGynFAEvBJ7xH5DJSB" \
   -d '{
     "llm_output": "Approved! DTI is 35%",
     "ontology": "mortgage-compliance-v1"
-  }'
+  }' | python3 -m json.tool 2>/dev/null || echo "(response above)"

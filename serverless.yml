@@ -9,6 +9,7 @@ provider:
     ONTOLOGY_BUCKET: ${self:custom.ontologyBucket}
     VERIFICATION_TABLE: ${self:custom.verificationTable}
     STAGE: ${self:provider.stage}
+    DEPLOY_VERSION: "0.2.9-fix2"
   apiGateway:
     apiKeys:
       - name: aare-ai-key-${self:provider.stage}
@@ -38,17 +39,17 @@ provider:
           Resource:
             - !GetAtt VerificationTable.Arn
 
-plugins:
-  - serverless-python-requirements
-
 custom:
   ontologyBucket: aare-ai-ontologies-${self:provider.stage}
   verificationTable: aare-ai-verifications-${self:provider.stage}
   pythonRequirements:
-    dockerizePip: non-linux
+    dockerizePip: false
     slim: true
     strip: false
     fileName: requirements.txt
+    pythonBin: python3
+    useStaticCache: false
+    useDownloadCache: false
 
 package:
   patterns:

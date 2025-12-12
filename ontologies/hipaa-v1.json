@@ -921,6 +921,14 @@
       "type": "boolean",
       "keywords": ["audit", "logged", "tracked", "recorded", "trail"]
     },
+    "has_retention_policy": {
+      "type": "boolean",
+      "keywords": ["retained", "retention", "6 years", "six years", "record retention", "retention policy"]
+    },
+    "audit_immutable": {
+      "type": "boolean",
+      "keywords": ["immutable", "tamper-proof", "tamperproof", "append-only", "write-once", "cannot be modified", "unalterable"]
+    },
     "has_print_instruction": {
       "type": "boolean",
       "keywords": ["print", "printer", "hardcopy", "hard copy", "fax"]
