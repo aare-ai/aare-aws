@@ -124,12 +124,16 @@ echo ""
 echo "✅ Deployment complete!"
 echo ""
 
-# Test the API
-echo "Testing the API..."
-curl -s -X POST https://lofeorzpeh.execute-api.us-west-2.amazonaws.com/prod/verify \
-  -H "Content-Type: application/json" \
-  -H "x-api-key: gUKFSwx3Pv5B7exuS2IX86lGynFAEvBJ7xH5DJSB" \
-  -d '{
-    "llm_output": "Approved! DTI is 35%",
-    "ontology": "mortgage-compliance-v1"
-  }' | python3 -m json.tool 2>/dev/null || echo "(response above)"
+# Test the API (requires AARE_API_KEY environment variable)
+if [ -n "$AARE_API_KEY" ]; then
+    echo "Testing the API..."
+    curl -s -X POST https://api.aare.ai/verify \
+      -H "Content-Type: application/json" \
+      -H "x-api-key: $AARE_API_KEY" \
+      -d '{
+        "llm_output": "Approved! DTI is 35%",
+        "ontology": "mortgage-compliance-v1"
+      }' | python3 -m json.tool 2>/dev/null || echo "(response above)"
+else
+    echo "Skipping API test (set AARE_API_KEY to enable)"
+fi
