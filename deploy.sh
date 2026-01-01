@@ -1,12 +1,31 @@
 #!/bin/bash
+# =============================================================================
 # Deploy aare-ai Lambda function
-# Supports both ZIP and Container Image deployments
+# =============================================================================
+# This is the PRIMARY deployment method for production.
+#
+# Architecture:
+#   CloudFront (api.aare.ai) -> API Gateway (lw0t1qp1lh) -> Lambda (aare-ai-prod)
+#
+# AWS Resources:
+#   - Lambda: aare-ai-prod
+#   - API Gateway: lw0t1qp1lh (prod-aare-ai)
+#   - CloudFront: E2AMMH8UWJ3VCF (api.aare.ai)
+#   - S3: aare-ai-ontologies-prod, aare-ai-deployments-us-west-2
+#   - DynamoDB: aare-ai-verifications-prod
+#
+# Usage:
+#   ./deploy.sh                    # Deploy Lambda code
+#   AARE_API_KEY=xxx ./deploy.sh   # Deploy and test
+# =============================================================================
 
 set -e
 
 FUNCTION_NAME="aare-ai-prod"
 REGION="us-west-2"
 ECR_REPO="596626989349.dkr.ecr.us-west-2.amazonaws.com/aare-ai"
+API_GATEWAY_ID="lw0t1qp1lh"
+CLOUDFRONT_ID="E2AMMH8UWJ3VCF"
 
 # Check current package type
 PACKAGE_TYPE=$(aws lambda get-function-configuration --function-name $FUNCTION_NAME --region $REGION --query 'PackageType' --output text 2>/dev/null || echo "Unknown")

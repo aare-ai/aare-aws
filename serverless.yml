@@ -1,144 +1,57 @@
 service: aare-ai
 
+# =============================================================================
+# DEPLOYMENT NOTES
+# =============================================================================
+# This serverless.yml is NOT used for production deployments.
+#
+# Production deployment uses deploy.sh which:
+#   1. Builds a ZIP package with Z3 dependencies
+#   2. Deploys directly to Lambda function: aare-ai-prod
+#   3. The Lambda is connected to API Gateway (lw0t1qp1lh) via CloudFront (api.aare.ai)
+#
+# To deploy to production:
+#   ./deploy.sh
+#
+# This serverless.yml is kept for reference and potential future use.
+# =============================================================================
+
 provider:
   name: aws
   runtime: python3.11
   region: us-west-2
-  stage: ${opt:stage, 'prod'}  # Changed default to 'prod'
-  environment:
-    ONTOLOGY_BUCKET: ${self:custom.ontologyBucket}
-    VERIFICATION_TABLE: ${self:custom.verificationTable}
-    STAGE: ${self:provider.stage}
-    DEPLOY_VERSION: "0.2.9-fix2"
-  apiGateway:
-    apiKeys:
-      - name: aare-ai-key-${self:provider.stage}
-        description: API key for aare.ai ${self:provider.stage}
-    usagePlan:
-      quota:
-        limit: 100000
-        period: DAY
-      throttle:
-        burstLimit: 500
-        rateLimit: 200
-  iam:
-    role:
-      statements:
-        - Effect: Allow
-          Action:
-            - s3:GetObject
-            - s3:ListBucket
-          Resource:
-            - arn:aws:s3:::${self:custom.ontologyBucket}
-            - arn:aws:s3:::${self:custom.ontologyBucket}/*
-        - Effect: Allow
-          Action:
-            - dynamodb:PutItem
-            - dynamodb:GetItem
-            - dynamodb:Query
-          Resource:
-            - !GetAtt VerificationTable.Arn
+  stage: ${opt:stage, 'prod'}
 
 custom:
-  ontologyBucket: aare-ai-ontologies-${self:provider.stage}
-  verificationTable: aare-ai-verifications-${self:provider.stage}
-  pythonRequirements:
-    dockerizePip: false
-    slim: true
-    strip: false
-    fileName: requirements.txt
-    pythonBin: python3
-    useStaticCache: false
-    useDownloadCache: false
+  # Existing AWS resources (do not recreate)
+  apiGatewayId: lw0t1qp1lh
+  lambdaFunction: aare-ai-prod
+  ontologyBucket: aare-ai-ontologies-prod
+  verificationTable: aare-ai-verifications-prod
+  cloudFrontDomain: api.aare.ai
+  apiKey: aare-ai-key-prod-v2
 
-package:
-  patterns:
-    - '!node_modules/**'
-    - '!demo-ui/**'
-    - '!tests/**'
-    - '!.git/**'
-    - '!ontologies/**'
-    - '!package*.json'
-    - handlers/**
-
-functions:
-  verify:
-    handler: handlers/handler.handler
-    description: aare.ai Z3 SMT verification engine - Production
-    timeout: 30
-    memorySize: 2048
-    events:
-      - http:
-          path: /verify
-          method: post
-          cors:
-            origins:
-              - https://aare.ai
-              - https://www.aare.ai
-              - http://localhost:8000
-              - http://localhost:3000
-            headers:
-              - Content-Type
-              - X-Amz-Date
-              - Authorization
-              - X-Api-Key
-              - X-Amz-Security-Token
-              - X-Amz-User-Agent
-            allowCredentials: false
-          private: true
-
-resources:
-  Resources:
-    VerificationTable:
-      Type: AWS::DynamoDB::Table
-      Properties:
-        TableName: ${self:custom.verificationTable}
-        BillingMode: PAY_PER_REQUEST
-        AttributeDefinitions:
-          - AttributeName: verification_id
-            AttributeType: S
-          - AttributeName: ontology_name
-            AttributeType: S
-          - AttributeName: timestamp
-            AttributeType: S
-        KeySchema:
-          - AttributeName: verification_id
-            KeyType: HASH
-        GlobalSecondaryIndexes:
-          - IndexName: ontology-timestamp-index
-            KeySchema:
-              - AttributeName: ontology_name
-                KeyType: HASH
-              - AttributeName: timestamp
-                KeyType: RANGE
-            Projection:
-              ProjectionType: ALL
-        TimeToLiveSpecification:
-          AttributeName: ttl
-          Enabled: true
-    GatewayResponseDefault4XX:
-      Type: AWS::ApiGateway::GatewayResponse
-      Properties:
-        ResponseParameters:
-          gatewayresponse.header.Access-Control-Allow-Origin: "'https://aare.ai'"
-          gatewayresponse.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
-          gatewayresponse.header.Access-Control-Allow-Methods: "'OPTIONS,POST'"
-        ResponseType: DEFAULT_4XX
-        RestApiId:
-          Ref: ApiGatewayRestApi
-    GatewayResponseDefault5XX:
-      Type: AWS::ApiGateway::GatewayResponse
-      Properties:
-        ResponseParameters:
-          gatewayresponse.header.Access-Control-Allow-Origin: "'https://aare.ai'"
-          gatewayresponse.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
-          gatewayresponse.header.Access-Control-Allow-Methods: "'OPTIONS,POST'"
-        ResponseType: DEFAULT_5XX
-        RestApiId:
-          Ref: ApiGatewayRestApi
-  Outputs:
-    ApiEndpoint:
-      Description: API Gateway endpoint URL
-      Value:
-        Fn::Sub: https://${ApiGatewayRestApi}.execute-api.${AWS::Region}.amazonaws.com/${self:provider.stage}
+# =============================================================================
+# CURRENT PRODUCTION CONFIGURATION (for reference)
+# =============================================================================
+# Lambda Function: aare-ai-prod
+#   - Runtime: python3.11
+#   - Handler: handlers.handler.handler
+#   - Memory: 2048 MB
+#   - Timeout: 60s
+#   - Environment:
+#       ONTOLOGY_DIR: /var/task/ontologies
+#
+# API Gateway: lw0t1qp1lh (prod-aare-ai)
+#   - Endpoint: https://lw0t1qp1lh.execute-api.us-west-2.amazonaws.com/prod/verify
+#   - Method: POST /verify
+#   - Auth: API Key required
+#
+# CloudFront: E2AMMH8UWJ3VCF
+#   - Domain: api.aare.ai
+#   - Origin: lw0t1qp1lh.execute-api.us-west-2.amazonaws.com/prod
+#
+# DynamoDB: aare-ai-verifications-prod
+# S3: aare-ai-ontologies-prod
+# =============================================================================
 
